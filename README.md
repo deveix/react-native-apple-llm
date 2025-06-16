@@ -111,8 +111,13 @@ async function runLLM() {
   }
 }
 
-// Call runLLM() in your component or useEffect
 ```
+
+## TODO
+
+- [ ] Streaming support using `Event Emitters`
+- [ ] Tool creation and invocation support
+
 
 ## License
 
