@@ -1,4 +1,4 @@
-import { NativeModules } from "react-native";
+import { NativeModules, Platform } from "react-native";
 
 const { AppleLLMModule } = NativeModules;
 
@@ -28,6 +28,9 @@ export type FoundationModelsAvailability =
  */
 export const isFoundationModelsEnabled =
   async (): Promise<FoundationModelsAvailability> => {
+    if (Platform.OS !== "ios") {
+      return "unavailable";
+    }
     return AppleLLMModule.isFoundationModelsEnabled();
   };
 
