@@ -121,6 +121,7 @@ async function runLLM() {
 
 - [ ] Streaming support using `Event Emitters`
 - [ ] Tool creation and invocation support
+- [ ] Schema as zod
 
 
 ## License
