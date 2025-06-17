@@ -120,17 +120,20 @@ class AppleLLMModule: NSObject {
         childProperty = DynamicGenerationSchema.Property(
           name: key, description: description, schema: childSchema)
       } else if type == "object", let nested = field["properties"] as? [String: Any] {
-        let nestedSchema = dynamicSchema(from: ["properties": nested], name: key)
+        let nestedSchema = dynamicSchema(from: nested, name: key)
         childProperty = DynamicGenerationSchema.Property(
           name: key, description: description, schema: nestedSchema)
-      } else if type == "array", let items = field["items"] as? [String: Any] {
-        let itemSchema = dynamicSchema(from: ["properties": ["item": items]], name: "\(key)Item")
-        let arraySchema = DynamicGenerationSchema(
-          name: key, description: description,
-          properties: [DynamicGenerationSchema.Property(name: "items", schema: itemSchema)])
-        childProperty = DynamicGenerationSchema.Property(
-          name: key, description: description, schema: arraySchema)
-      } else {
+      }
+      // TODO: handle array
+      // else if type == "array", let items = field["items"] as? [String: Any] {
+      //   let itemSchema = dynamicSchema(from: [items], name: "\(key)Item")
+      //   let arraySchema = DynamicGenerationSchema(
+      //     name: key, description: description,
+      //     properties: [DynamicGenerationSchema.Property(name: "items", schema: itemSchema)])
+      //   childProperty = DynamicGenerationSchema.Property(
+      //     name: key, description: description, schema: arraySchema)
+      // }
+      else {
         childProperty = schemaForType(name: key, type: type ?? "string", description: description)
       }
 

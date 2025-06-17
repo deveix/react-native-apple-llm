@@ -6,21 +6,11 @@ if (!AppleLLMModule) {
   console.log("AppleLLM native module is not available");
   throw new Error("AppleLLM native module is not available");
 }
-
-export interface LLMConfigOptions {
-  instructions?: string;
-}
-
-export interface LLMGenerateOptions {
-  structure: Record<string, any>; // expected schema shape
-  prompt: string;
-}
-
-export type FoundationModelsAvailability =
-  | "available"
-  | "appleIntelligenceNotEnabled"
-  | "modelNotReady"
-  | "unavailable";
+import {
+  FoundationModelsAvailability,
+  LLMConfigOptions,
+  LLMGenerateOptions,
+} from "./types";
 
 /**
  * Check if Foundation Models (Apple Intelligence) are enabled and available.
@@ -59,3 +49,5 @@ export const generateStructuredOutput = async (
 export const resetSession = async (): Promise<boolean> => {
   return AppleLLMModule.resetSession();
 };
+
+export * from "./types";

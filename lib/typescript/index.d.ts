@@ -1,11 +1,4 @@
-export interface LLMConfigOptions {
-    instructions?: string;
-}
-export interface LLMGenerateOptions {
-    structure: Record<string, any>;
-    prompt: string;
-}
-export type FoundationModelsAvailability = "available" | "appleIntelligenceNotEnabled" | "modelNotReady" | "unavailable";
+import { FoundationModelsAvailability, LLMConfigOptions, LLMGenerateOptions } from "./types";
 /**
  * Check if Foundation Models (Apple Intelligence) are enabled and available.
  * Returns a string status: 'available', 'appleIntelligenceNotEnabled', 'modelNotReady', 'unavailable'.
@@ -24,4 +17,5 @@ export declare const generateStructuredOutput: (options: LLMGenerateOptions) => 
  * Reset the LLM session
  */
 export declare const resetSession: () => Promise<boolean>;
+export * from "./types";
 //# sourceMappingURL=index.d.ts.map
