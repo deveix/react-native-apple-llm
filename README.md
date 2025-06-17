@@ -55,21 +55,29 @@ Resets the LLM session.
 
 ### Types
 
+#### Structure Property Fields
+
+| Field         | Type                                                         | Description                                       |
+| ------------- | ------------------------------------------------------------ | ------------------------------------------------- |
+| `type`        | `"string" \| "integer" \| "number" \| "boolean" \| "object"` | Optional. Defines the data type of the property   |
+| `description` | `string`                                                     | Optional. Provides description for the property   |
+| `enum`        | `string[]`                                                   | Optional. List of allowed values for the property |
+| `properties`  | `StructureSchema`                                            | Optional. Nested structure for object types       |
+
+#### Configuration Options
+
+| Interface            | Field          | Type              | Description                                   |
+| -------------------- | -------------- | ----------------- | --------------------------------------------- |
+| `LLMConfigOptions`   | `instructions` | `string`          | Optional. System instructions for the session |
+| `LLMGenerateOptions` | `structure`    | `StructureSchema` | Schema defining the expected output structure |
+| `LLMGenerateOptions` | `prompt`       | `string`          | The prompt/question for the LLM               |
+
+Where `StructureSchema` is a key-value mapping where each value is a `StructureProperty`:
+
 ```ts
-export interface LLMConfigOptions {
-  instructions?: string;
-}
-
-export interface LLMGenerateOptions {
-  structure: Record<string, any>; // expected schema shape
-  prompt: string;
-}
-
-export type FoundationModelsAvailability =
-  | "available"
-  | "appleIntelligenceNotEnabled"
-  | "modelNotReady"
-  | "unavailable";
+type StructureSchema = {
+  [key: string]: StructureProperty;
+};
 ```
 
 ## Example Usage
@@ -114,7 +122,6 @@ async function runLLM() {
     console.log("[AppleLLM] Error:", err);
   }
 }
-
 ```
 
 ## TODO
@@ -122,7 +129,6 @@ async function runLLM() {
 - [ ] Streaming support using `Event Emitters`
 - [ ] Tool creation and invocation support
 - [ ] Schema as zod
-
 
 ## License
 
