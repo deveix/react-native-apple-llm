@@ -1,6 +1,6 @@
 {
   "name": "react-native-apple-llm",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "React Native bindings for Apple Intelligence FoundationModels",
   "author": {
     "name": "Ahmed kasem",
