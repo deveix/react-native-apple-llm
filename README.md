@@ -2,9 +2,9 @@
   <img src="https://img.shields.io/badge/Follow_on_X-000000?logo=x&logoColor=white&style=flat-square" alt="Follow on X"/>
 </a>
 
-# react-native-apple-llm
+# React Native Apple LLM Plugin
 
-A React Native plugin for accessing Apple Intelligence Foundation Models (LLM) on supported Apple devices. This module provides a simple interface to check model availability, configure sessions, and generate structured output using Apple LLM APIs.
+A React Native plugin for accessing Apple Intelligence Foundation Models (LLM) on supported Apple devices. This plugin provides a simple interface to check model availability, configure sessions, and generate structured output using Apple LLM APIs.
 
 ## Installation
 
