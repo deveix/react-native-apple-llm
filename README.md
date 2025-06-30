@@ -4,7 +4,7 @@
 
 # React Native Apple LLM Plugin
 
-A React Native Apple Intelligence plugin (LLM) for accessing Foundation Models on supported Apple devices. This plugin provides a simple interface to check model availability, configure sessions, and generate structured output using Apple LLM APIs.
+A <b>React Native plugin for Apple Intelligence</b> (LLM) that enables seamless access to Foundation Models on supported Apple devices. It offers a clean, developer-friendly interface to check model availability, manage sessions, and generate structured outputs using Apple’s native LLM APIs.
 
 ## Installation
 
@@ -21,6 +21,14 @@ yarn add react-native-apple-llm
 ```sh
 npx pod-install
 ```
+
+
+## TODO
+
+- [ ] Streaming support using `Event Emitters`
+- [ ] Tool creation and invocation support
+- [ ] Schema as zod
+
 
 ## API
 
@@ -123,12 +131,6 @@ async function runLLM() {
   }
 }
 ```
-
-## TODO
-
-- [ ] Streaming support using `Event Emitters`
-- [ ] Tool creation and invocation support
-- [ ] Schema as zod
 
 ## License
 
