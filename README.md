@@ -4,7 +4,7 @@
 
 # React Native Apple LLM Plugin
 
-A <b>React Native plugin for Apple Intelligence</b> (LLM) that enables seamless access to Foundation Models on supported Apple devices. It offers a clean, developer-friendly interface to check model availability, manage sessions, and generate structured outputs using Apple’s native LLM APIs.
+A <b>React Native plugin for Apple Intelligence</b> (LLM) that enables seamless access to Foundation Models on supported Apple devices. It offers a clean, developer-friendly interface to check model availability, manage sessions, and generate text, structured outputs using Apple's native LLM APIs.
 
 ## Installation
 
@@ -22,13 +22,11 @@ yarn add react-native-apple-llm
 npx pod-install
 ```
 
-
 ## TODO
 
 - [ ] Streaming support using `Event Emitters`
 - [ ] Tool creation and invocation support
 - [ ] Schema as zod
-
 
 ## API
 
@@ -56,6 +54,14 @@ Generates structured output using a JSON schema.
 
 - `options.structure`: Record<string, any> — expected schema shape
 - `options.prompt`: string — prompt/question for the LLM
+
+#### `generateText(options: LLMGenerateTextOptions): Promise<any>`
+
+Generates a text response from the LLM using a prompt.
+
+- `options.prompt`: `string` — The prompt/question for the LLM
+
+Returns: The generated text as a string.
 
 #### `resetSession(): Promise<boolean>`
 
@@ -95,6 +101,8 @@ import {
   isFoundationModelsEnabled,
   configureSession,
   generateStructuredOutput,
+  generateText,
+  StructureSchema,
 } from "react-native-apple-llm";
 
 async function runLLM() {
@@ -109,7 +117,7 @@ async function runLLM() {
       instructions: "You are a helpful assistant. Return structured JSON.",
     });
 
-    const structure = {
+    const structure: StructureSchema = {
       answer: { type: "string", description: "The answer to the question" },
       confidence: { type: "number", description: "Confidence score" },
     };
@@ -125,6 +133,14 @@ async function runLLM() {
         confidence: { value: 1 },
         answer: { value: 'Paris' }
       }
+    */
+
+    const answer = await generateText({
+      prompt,
+    });
+    console.log("[AppleLLM] Text result:", answer);
+    /* 
+      [AppleLLM] Final result: "Paris"
     */
   } catch (err) {
     console.log("[AppleLLM] Error:", err);

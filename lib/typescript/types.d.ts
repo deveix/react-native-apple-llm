@@ -1,12 +1,11 @@
-type StructureProperty = {
+export type StructureProperty = {
     type?: "string" | "integer" | "number" | "boolean" | "object";
     description?: string;
     enum?: string[];
     properties?: StructureSchema;
 };
-type StructureField = StructureProperty;
 export type StructureSchema = {
-    [key: string]: StructureField;
+    [key: string]: StructureProperty;
 };
 export interface LLMConfigOptions {
     instructions?: string;
@@ -15,6 +14,8 @@ export interface LLMGenerateOptions {
     structure: StructureSchema;
     prompt: string;
 }
+export interface LLMGenerateTextOptions {
+    prompt: string;
+}
 export type FoundationModelsAvailability = "available" | "appleIntelligenceNotEnabled" | "modelNotReady" | "unavailable";
-export {};
 //# sourceMappingURL=types.d.ts.map

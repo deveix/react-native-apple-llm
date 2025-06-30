@@ -12,6 +12,10 @@
 RCT_EXTERN_METHOD(generateStructuredOutput : (NSDictionary *)options resolve : (
     RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject)
 
+// Generate text from LLM based on input options
+RCT_EXTERN_METHOD(generateText : (NSDictionary *)options resolve : (
+    RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject)
+
 // Optionally: reset or configure model session
 RCT_EXTERN_METHOD(configureSession : (NSDictionary *)config resolve : (
     RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject)

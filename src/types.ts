@@ -1,14 +1,12 @@
-type StructureProperty = {
+export type StructureProperty = {
   type?: "string" | "integer" | "number" | "boolean" | "object";
   description?: string;
   enum?: string[];
   properties?: StructureSchema;
 };
 
-type StructureField = StructureProperty;
-
 export type StructureSchema = {
-  [key: string]: StructureField;
+  [key: string]: StructureProperty;
 };
 
 export interface LLMConfigOptions {
@@ -17,6 +15,10 @@ export interface LLMConfigOptions {
 
 export interface LLMGenerateOptions {
   structure: StructureSchema;
+  prompt: string;
+}
+
+export interface LLMGenerateTextOptions {
   prompt: string;
 }
 

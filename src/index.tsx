@@ -1,4 +1,4 @@
-import { NativeModules, Platform } from "react-native";
+import { NativeModules } from "react-native";
 
 const { AppleLLMModule } = NativeModules;
 
@@ -10,6 +10,7 @@ import {
   FoundationModelsAvailability,
   LLMConfigOptions,
   LLMGenerateOptions,
+  LLMGenerateTextOptions,
 } from "./types";
 
 /**
@@ -18,9 +19,6 @@ import {
  */
 export const isFoundationModelsEnabled =
   async (): Promise<FoundationModelsAvailability> => {
-    if (Platform.OS !== "ios") {
-      return "unavailable";
-    }
     return AppleLLMModule.isFoundationModelsEnabled();
   };
 
@@ -31,6 +29,16 @@ export const configureSession = async (
   options: LLMConfigOptions
 ): Promise<boolean> => {
   return AppleLLMModule.configureSession(options);
+};
+
+/**
+ * Generate text using text parameter
+ * Now only returns the final result; partials are not supported.
+ */
+export const generateText = async (
+  options: LLMGenerateTextOptions
+): Promise<any> => {
+  return AppleLLMModule.generateText(options);
 };
 
 /**

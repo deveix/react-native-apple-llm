@@ -267,6 +267,38 @@ class AppleLLMModule: NSObject {
   }
 
   @objc
+  func generateText(
+    _ options: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    guard let session = session else {
+      reject("SESSION_NOT_CONFIGURED", "Call configureSession first", nil)
+      return
+    }
+
+    guard let prompt = options["prompt"] as? String else {
+      reject("INVALID_INPUT", "Missing 'prompt' field", nil)
+      return
+    }
+
+    Task {
+      do {
+        let result = try await session.respond(
+          to: prompt,
+          options: GenerationOptions(sampling: .greedy)
+        )
+        print("result: \((result.content))")
+        resolve(result.content)
+
+      } catch {
+        reject(
+          "GENERATION_FAILED", "Failed to generate output: \(error.localizedDescription)", error)
+      }
+    }
+  }
+
+  @objc
   func resetSession(
     _ resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
