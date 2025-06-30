@@ -1,10 +1,10 @@
-<a href="https://x.com/aykasem001" target="_blank">
-  <img src="https://img.shields.io/badge/Follow_on_X-000000?logo=x&logoColor=white&style=flat-square" alt="Follow on X"/>
-</a>
-
 # React Native Apple LLM Plugin
 
 A <b>React Native plugin for Apple Intelligence</b> (LLM) that enables seamless access to Foundation Models on supported Apple devices. It offers a clean, developer-friendly interface to check model availability, manage sessions, and generate text, structured outputs using Apple's native LLM APIs.
+
+<a href="https://x.com/aykasem001" target="_blank">
+  <img src="https://img.shields.io/badge/Follow_on_X-000000?logo=x&logoColor=white&style=flat-square" alt="Follow on X"/>
+</a>
 
 ## Installation
 
