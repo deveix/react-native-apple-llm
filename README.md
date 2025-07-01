@@ -21,16 +21,16 @@ A React Native plugin to access Apple Intelligence Foundation Models using nativ
 
 <div align="center">
 
-<a href="https://x.com/aykasem001" target="_blank">
-  <img src="https://img.shields.io/badge/Follow_on_X-000000?logo=x&logoColor=white&style=flat-square" alt="Follow on X"/>
-</a>
-
 [![mit licence](https://img.shields.io/dub/l/vibe-d.svg?style=for-the-badge)](https://github.com/deveix/react-native-apple-llm/blob/main/LICENSE.md)
 [![npm version](https://img.shields.io/npm/v/react-native-apple-llm?style=for-the-badge)](https://www.npmjs.com/package/react-native-apple-llm)
 [![npm downloads](https://img.shields.io/npm/dt/react-native-apple-llm.svg?style=for-the-badge)](https://www.npmjs.org/package/react-native-apple-llm)
 [![npm downloads](https://img.shields.io/npm/dm/react-native-apple-llm.svg?style=for-the-badge)](https://www.npmjs.org/package/react-native-apple-llm)
 
 </div>
+
+<a href="https://x.com/aykasem001" target="_blank">
+  <img src="https://img.shields.io/badge/Follow_on_X-000000?logo=x&logoColor=white&style=flat-square" alt="Follow on X"/>
+</a>
 
 ## 📦 Installation
 
@@ -363,10 +363,6 @@ MIT License - see [LICENSE.md](LICENSE.md) for details.
 - [Apple's Foundation Models Documentation](https://developer.apple.com/machine-learning/)
 - [React Native Documentation](https://reactnative.dev/)
 - [Apple Intelligence Overview](https://www.apple.com/apple-intelligence/)
-
-## 📈 Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for a detailed list of changes and updates.
 
 ---
 
