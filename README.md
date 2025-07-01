@@ -10,8 +10,6 @@ A React Native plugin to access Apple Intelligence Foundation Models using nativ
 - **Text generation** - Create human-like text responses
 - **Session management** - Configure and manage LLM sessions
 - **TypeScript support** - Full type safety and IntelliSense
-- **iOS 18+ support** - Works with latest Apple Intelligence features
-- **React Native 0.70+** - Compatible with modern React Native versions
 
 ## 📱 Requirements
 
