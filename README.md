@@ -1,6 +1,6 @@
 # React Native Apple LLM Plugin
 
-A <b>React Native plugin for Apple Intelligence</b> (LLM) that enables seamless access to Foundation Models on supported Apple devices. It offers a clean, developer-friendly interface to check model availability, manage sessions, and generate text, structured outputs using Apple's native LLM APIs.
+A React Native plugin to access Apple Intelligence Foundation Models using native on-device LLM APIs. This module lets you check model availability, create sessions, generate structured outputs (JSON), and text using Apple's LLMs, all from React Native.
 
 <a href="https://x.com/aykasem001" target="_blank">
   <img src="https://img.shields.io/badge/Follow_on_X-000000?logo=x&logoColor=white&style=flat-square" alt="Follow on X"/>
@@ -9,7 +9,7 @@ A <b>React Native plugin for Apple Intelligence</b> (LLM) that enables seamless 
 <div align="center">
 
 [![mit licence](https://img.shields.io/dub/l/vibe-d.svg?style=for-the-badge)](https://github.com/deveix/react-native-apple-llm/blob/main/LICENSE.md)
-[![npm version](https://img.shields.io/npm/v/react-native-apple-llm?style=for-the-badge)](https://www.npmjs.org/package/react-native-ai)
+[![npm version](https://img.shields.io/npm/v/react-native-apple-llm?style=for-the-badge)](https://www.npmjs.com/package/react-native-apple-llm)
 [![npm downloads](https://img.shields.io/npm/dt/react-native-apple-llm.svg?style=for-the-badge)](https://www.npmjs.org/package/react-native-apple-llm)
 [![npm downloads](https://img.shields.io/npm/dm/react-native-apple-llm.svg?style=for-the-badge)](https://www.npmjs.org/package/react-native-apple-llm)
 
