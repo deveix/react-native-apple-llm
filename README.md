@@ -358,9 +358,8 @@ MIT License - see [LICENSE.md](LICENSE.md) for details.
 
 ## 🔗 Related Projects
 
-- [Apple's Foundation Models Documentation](https://developer.apple.com/machine-learning/)
+- [Apple's Foundation Models Documentation](https://developer.apple.com/documentation/foundationmodels/)
 - [React Native Documentation](https://reactnative.dev/)
-- [Apple Intelligence Overview](https://www.apple.com/apple-intelligence/)
 
 ---
 
