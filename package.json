@@ -1,10 +1,18 @@
 {
   "name": "react-native-apple-llm",
   "version": "1.0.5",
-  "description": "React Native bindings for Apple Intelligence FoundationModels",
+  "description": "React Native plugin for Apple Intelligence and Foundation Models",
   "author": {
     "name": "Ahmed kasem",
     "email": "ahmed.a.kasem18@gmail.com"
+  },
+  "homepage": "https://github.com/deveix/react-native-apple-llm",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deveix/react-native-apple-llm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/deveix/react-native-apple-llm/issues"
   },
   "license": "MIT",
   "main": "lib/commonjs/index.js",
@@ -14,12 +22,18 @@
   "source": "src/index.tsx",
   "sideEffects": false,
   "keywords": [
-    "apple",
-    "llm",
-    "foundationmodels",
     "react-native",
+    "apple",
+    "apple-intelligence",
+    "foundation-models",
+    "llm",
+    "local-llm",
+    "react-native-plugin",
+    "react-native-apple-llm",
+    "apple-foundation-models",
+    "apple-llm",
     "ai",
-    "foundation-models"
+    "on-device-llm"
   ],
   "files": [
     "src",
