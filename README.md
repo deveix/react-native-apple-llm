@@ -19,11 +19,11 @@ A React Native plugin to access Apple Intelligence Foundation Models using nativ
 - Xcode 26
 - Apple Intelligence enabled device (iPhone 15 Pro, iPhone 16 series, M1+ iPad/Mac)
 
+<div align="center">
+
 <a href="https://x.com/aykasem001" target="_blank">
   <img src="https://img.shields.io/badge/Follow_on_X-000000?logo=x&logoColor=white&style=flat-square" alt="Follow on X"/>
 </a>
-
-<div align="center">
 
 [![mit licence](https://img.shields.io/dub/l/vibe-d.svg?style=for-the-badge)](https://github.com/deveix/react-native-apple-llm/blob/main/LICENSE.md)
 [![npm version](https://img.shields.io/npm/v/react-native-apple-llm?style=for-the-badge)](https://www.npmjs.com/package/react-native-apple-llm)
@@ -98,9 +98,7 @@ const generateSimpleText = async () => {
 - [ ] Streaming support using `Event Emitters`
 - [ ] Tool creation and invocation support
 - [ ] Schema as zod
-- [ ] Image input support for multimodal interactions
 - [ ] Function calling capabilities
-- [ ] Custom model fine-tuning integration
 
 ## 📚 API Reference
 
