@@ -8,10 +8,97 @@ import Foundation
 import FoundationModels
 import React
 
+@available(iOS 26, *)
+class BridgeTool: Tool {
+  let name: String
+  let description: String
+  private let parameters: [String: [String: Any]]
+  private weak var module: AppleLLMModule?
+  
+  init(name: String, description: String, parameters: [String: [String: Any]], module: AppleLLMModule) {
+    self.name = name
+    self.description = description
+    self.parameters = parameters
+    self.module = module
+  }
+  
+  func invoke(with parameters: [String: Any]) async throws -> Any {
+    guard let module = module else {
+      throw NSError(domain: "BridgeToolError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Module reference lost"])
+    }
+    
+    let id = UUID().uuidString
+    return try await module.invokeTool(name: name, id: id, parameters: parameters)
+  }
+  
+  var parameterSchema: GenerationSchema {
+    do {
+      return try GenerationSchema(root: buildDynamicSchema(from: parameters), dependencies: [])
+    } catch {
+      // Fallback to empty schema if building fails
+      return try! GenerationSchema(root: DynamicGenerationSchema(name: name, properties: []), dependencies: [])
+    }
+  }
+  
+  private func buildDynamicSchema(from parameters: [String: [String: Any]]) -> DynamicGenerationSchema {
+    var properties: [DynamicGenerationSchema.Property] = []
+    
+    for (key, paramDef) in parameters {
+      guard let type = paramDef["type"] as? String else { continue }
+      let description = paramDef["description"] as? String
+      let enumValues = paramDef["enum"] as? [String]
+      
+      let property: DynamicGenerationSchema.Property
+      
+      if let enumValues = enumValues {
+        let enumSchema = DynamicGenerationSchema(
+          name: key,
+          description: description,
+          anyOf: enumValues
+        )
+        property = DynamicGenerationSchema.Property(
+          name: key,
+          description: description,
+          schema: enumSchema
+        )
+      } else {
+        property = schemaPropertyForType(name: key, type: type, description: description)
+      }
+      
+      properties.append(property)
+    }
+    
+    return DynamicGenerationSchema(name: name, properties: properties)
+  }
+  
+  private func schemaPropertyForType(name: String, type: String, description: String?) -> DynamicGenerationSchema.Property {
+    let schema: DynamicGenerationSchema
+    
+    switch type {
+    case "string":
+      schema = DynamicGenerationSchema(type: AppleLLMModule.GenerableString.self)
+    case "integer":
+      schema = DynamicGenerationSchema(type: AppleLLMModule.GenerableInt.self)
+    case "number":
+      schema = DynamicGenerationSchema(type: AppleLLMModule.GenerableNumber.self)
+    case "boolean":
+      schema = DynamicGenerationSchema(type: AppleLLMModule.GenerableBool.self)
+    default:
+      schema = DynamicGenerationSchema(type: AppleLLMModule.GenerableString.self)
+    }
+    
+    return DynamicGenerationSchema.Property(
+      name: name,
+      description: description,
+      schema: schema
+    )
+  }
+}
+
 @objc(AppleLLMModule)
 @available(iOS 26, *)
 @objcMembers
-class AppleLLMModule: NSObject {
+class AppleLLMModule: RCTEventEmitter {
 
   @objc
   static func moduleName() -> String! {
@@ -22,8 +109,15 @@ class AppleLLMModule: NSObject {
   static func requiresMainQueueSetup() -> Bool {
     return false
   }
+  
+  override func supportedEvents() -> [String]! {
+    return ["ToolInvocation"]
+  }
 
   private var session: LanguageModelSession?
+  private var registeredTools: [String: BridgeTool] = [:]
+  private var toolHandlers: [String: (String, [String: Any]) -> Void] = [:]
+  private var pendingToolResults: [String: Any] = [:]
 
   @objc
   func isFoundationModelsEnabled(
@@ -71,7 +165,8 @@ class AppleLLMModule: NSObject {
       }
     }
 
-    self.session = LanguageModelSession(tools: [], instructions: instructions)
+    let tools = Array(registeredTools.values)
+    self.session = LanguageModelSession(tools: tools, instructions: instructions)
     resolve(true)
   }
 
@@ -299,11 +394,160 @@ class AppleLLMModule: NSObject {
   }
 
   @objc
+  func registerTool(
+    _ toolDefinition: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    guard let name = toolDefinition["name"] as? String,
+          let description = toolDefinition["description"] as? String,
+          let parameters = toolDefinition["parameters"] as? [String: [String: Any]] else {
+      reject("INVALID_TOOL_DEFINITION", "Invalid tool definition structure", nil)
+      return
+    }
+    
+    let bridgeTool = BridgeTool(
+      name: name,
+      description: description,
+      parameters: parameters,
+      module: self
+    )
+    
+    registeredTools[name] = bridgeTool
+    resolve(true)
+  }
+  
+  @objc
+  func handleToolResult(
+    _ result: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    guard let id = result["id"] as? String else {
+      reject("INVALID_RESULT", "Tool result must have an id", nil)
+      return
+    }
+    
+    pendingToolResults[id] = result
+    resolve(true)
+  }
+  
+  @objc
+  func generateWithTools(
+    _ options: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    guard let session = session else {
+      reject("SESSION_NOT_CONFIGURED", "Call configureSession first", nil)
+      return
+    }
+    
+    guard let prompt = options["prompt"] as? String else {
+      reject("INVALID_INPUT", "Missing 'prompt' field", nil)
+      return
+    }
+    
+    let maxToolCalls = options["maxToolCalls"] as? Int ?? 15 // maybe allow user to set this  
+    
+    Task {
+      do {
+        let result = try await session.respond(
+          to: prompt,
+          options: GenerationOptions(
+            sampling: .greedy,
+            maxToolCalls: maxToolCalls
+          )
+        )
+        resolve(result.content)
+      } catch {
+        reject(
+          "GENERATION_FAILED", 
+          "Failed to generate with tools: \(error.localizedDescription)", 
+          error
+        )
+      }
+    }
+  }
+  
+  func invokeTool(name: String, id: String, parameters: [String: Any]) async throws -> Any {
+    return try await withCheckedThrowingContinuation { continuation in
+      // Store the continuation to resolve when React Native sends back the result
+      let continuationKey = id
+      
+      // Create a handler to resolve the continuation when result comes back
+      let handler = { (resultId: String, result: [String: Any]) in
+        if resultId == id {
+          if let success = result["success"] as? Bool, success {
+            continuation.resume(returning: result["result"] ?? "")
+          } else {
+            let error = result["error"] as? String ?? "Unknown tool execution error"
+            continuation.resume(throwing: NSError(
+              domain: "ToolExecutionError",
+              code: 1,
+              userInfo: [NSLocalizedDescriptionKey: error]
+            ))
+          }
+        }
+      }
+      
+      toolHandlers[continuationKey] = handler
+      
+      // Send tool invocation to React Native
+      DispatchQueue.main.async {
+        self.sendEvent(
+          withName: "ToolInvocation",
+          body: [
+            "name": name,
+            "id": id,
+            "parameters": parameters
+          ]
+        )
+      }
+      
+      // Check periodically for the result
+      Task {
+        for _ in 0..<300 { // 30 second timeout
+          try await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
+          
+          if let result = self.pendingToolResults[id] {
+            self.pendingToolResults.removeValue(forKey: id)
+            self.toolHandlers.removeValue(forKey: continuationKey)
+            
+            if let success = result["success"] as? Bool, success {
+              continuation.resume(returning: result["result"] ?? "")
+            } else {
+              let error = result["error"] as? String ?? "Unknown tool execution error"
+              continuation.resume(throwing: NSError(
+                domain: "ToolExecutionError",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: error]
+              ))
+            }
+            return
+          }
+        }
+        
+        // Timeout
+        self.toolHandlers.removeValue(forKey: continuationKey)
+        continuation.resume(throwing: NSError(
+          domain: "ToolExecutionError",
+          code: 2,
+          userInfo: [NSLocalizedDescriptionKey: "Tool execution timeout"]
+        ))
+      }
+    }
+  }
+  
+  @objc
   func resetSession(
     _ resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
     session = nil
+    registeredTools.removeAll()
+    toolHandlers.removeAll()
+    pendingToolResults.removeAll()
     resolve(true)
   }
 }
