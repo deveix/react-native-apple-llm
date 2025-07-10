@@ -448,18 +448,66 @@ class AppleLLMModule: RCTEventEmitter {
       return
     }
     
-    let maxToolCalls = options["maxToolCalls"] as? Int ?? 15 // maybe allow user to set this  
+    // Get optional parameters for tool calling
+    let maxTokens = options["maxTokens"] as? Int
+    let temperature = options["temperature"] as? Double
+    let enableToolCalling = options["enableToolCalling"] as? Bool ?? true
     
     Task {
       do {
+        var generationOptions = GenerationOptions(sampling: .greedy)
+        
+           if let maxTokens = maxTokens {
+          generationOptions = GenerationOptions(
+            sampling: generationOptions.sampling,
+            temperature: temperature,
+            maximumResponseTokens: maxTokens
+          )
+        }
+        
+        // Generate response with tools enabled
         let result = try await session.respond(
           to: prompt,
-          options: GenerationOptions(
-            sampling: .greedy,
-            maxToolCalls: maxToolCalls
-          )
+          options: generationOptions
         )
-        resolve(result.content)
+        
+        // Check if tools were invoked and handle the complete response
+        var response: [String: Any] = [:]
+        
+        // Extract the main content
+        let content = try flattenGeneratedContent(result.content)
+        response["content"] = content
+        
+        // Check for tool invocations in the response
+        if let toolInvocations = result.toolInvocations {
+          var toolCalls: [[String: Any]] = []
+          
+          for invocation in toolInvocations {
+            let toolCall: [String: Any] = [
+              "name": invocation.tool.name,
+              "parameters": invocation.parameters,
+              "id": invocation.id?.uuidString ?? UUID().uuidString
+            ]
+            toolCalls.append(toolCall)
+          }
+          
+          response["toolCalls"] = toolCalls
+          response["hasToolCalls"] = true
+        } else {
+          response["hasToolCalls"] = false
+        }
+        
+        // Include usage metadata if available
+        if let usage = result.usage {
+          response["usage"] = [
+            "promptTokens": usage.promptTokens,
+            "completionTokens": usage.completionTokens,
+            "totalTokens": usage.totalTokens
+          ]
+        }
+        
+        resolve(response)
+        
       } catch {
         reject(
           "GENERATION_FAILED", 

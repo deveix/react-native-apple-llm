@@ -13,6 +13,7 @@ import {
   LLMGenerateOptions,
   LLMGenerateTextOptions,
   LLMGenerateWithToolsOptions,
+  GenerateWithToolsResponse,
   ToolDefinition,
 } from "./types";
 
@@ -90,7 +91,7 @@ export const registerTool = async (
  */
 export const generateWithTools = async (
   options: LLMGenerateWithToolsOptions
-): Promise<string> => {
+): Promise<GenerateWithToolsResponse> => {
   // Set up tool invocation listener
   const subscription = eventEmitter.addListener(
     'ToolInvocation',
@@ -124,9 +125,11 @@ export const generateWithTools = async (
   );
   
   try {
-    // Register all tools first
-    for (const tool of options.tools) {
-      await AppleLLMModule.registerTool(tool);
+    // Register all tools first if provided
+    if (options.tools) {
+      for (const tool of options.tools) {
+        await AppleLLMModule.registerTool(tool);
+      }
     }
     
     // Generate with tools

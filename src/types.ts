@@ -38,8 +38,28 @@ export interface LLMGenerateTextOptions {
 
 export interface LLMGenerateWithToolsOptions {
   prompt: string;
-  tools: ToolDefinition[];
+  tools?: ToolDefinition[];
   maxToolCalls?: number;
+  maxTokens?: number;
+  temperature?: number;
+  enableToolCalling?: boolean;
+}
+
+export interface ToolCall {
+  name: string;
+  parameters: any;
+  id: string;
+}
+
+export interface GenerateWithToolsResponse {
+  content: any;
+  hasToolCalls: boolean;
+  toolCalls?: ToolCall[];
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
 }
 
 export type FoundationModelsAvailability =
