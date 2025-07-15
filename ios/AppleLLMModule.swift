@@ -35,11 +35,10 @@ class BridgeTool: Tool {
     do {
       return try GenerationSchema(root: buildDynamicSchema(from: parameters), dependencies: [])
     } catch {
-      // Fallback to empty schema if building fails
-      return try! GenerationSchema(root: DynamicGenerationSchema(name: name, properties: []), dependencies: [])
+      throw error
     }
   }
-  
+  // this function builds the dynamic schema obj for the tool parameters
   private func buildDynamicSchema(from parameters: [String: [String: Any]]) -> DynamicGenerationSchema {
     var properties: [DynamicGenerationSchema.Property] = []
     
@@ -70,7 +69,8 @@ class BridgeTool: Tool {
     
     return DynamicGenerationSchema(name: name, properties: properties)
   }
-  
+
+  // maps the type to the generable type
   private func schemaPropertyForType(name: String, type: String, description: String?) -> DynamicGenerationSchema.Property {
     let schema: DynamicGenerationSchema
     
@@ -117,7 +117,6 @@ class AppleLLMModule: RCTEventEmitter {
   private var session: LanguageModelSession?
   private var registeredTools: [String: BridgeTool] = [:]
   private var toolHandlers: [String: (String, [String: Any]) -> Void] = [:]
-  private var pendingToolResults: [String: Any] = [:]
 
   @objc
   func isFoundationModelsEnabled(
@@ -220,14 +219,7 @@ class AppleLLMModule: RCTEventEmitter {
           name: key, description: description, schema: nestedSchema)
       }
       // TODO: handle array
-      // else if type == "array", let items = field["items"] as? [String: Any] {
-      //   let itemSchema = dynamicSchema(from: [items], name: "\(key)Item")
-      //   let arraySchema = DynamicGenerationSchema(
-      //     name: key, description: description,
-      //     properties: [DynamicGenerationSchema.Property(name: "items", schema: itemSchema)])
-      //   childProperty = DynamicGenerationSchema.Property(
-      //     name: key, description: description, schema: arraySchema)
-      // }
+     
       else {
         childProperty = schemaForType(name: key, type: type ?? "string", description: description)
       }
@@ -428,7 +420,12 @@ class AppleLLMModule: RCTEventEmitter {
       return
     }
     
-    pendingToolResults[id] = result
+    // call handler and remove from pending 
+    if let handler = toolHandlers[id] {
+      handler(id, result as [String: Any])
+      toolHandlers.removeValue(forKey: id)
+    }
+    
     resolve(true)
   }
   
@@ -457,7 +454,7 @@ class AppleLLMModule: RCTEventEmitter {
       do {
         var generationOptions = GenerationOptions(sampling: .greedy)
         
-           if let maxTokens = maxTokens {
+          if let maxTokens = maxTokens {
           generationOptions = GenerationOptions(
             sampling: generationOptions.sampling,
             temperature: temperature,
@@ -553,36 +550,18 @@ class AppleLLMModule: RCTEventEmitter {
         )
       }
       
-      // Check periodically for the result
+      // Set up a timeout in case the tool never returns, maybe there is a better way to do this? also possibly let the user set the timeout 
       Task {
-        for _ in 0..<300 { // 30 second timeout
-          try await Task.sleep(nanoseconds: 100_000_000) // 0.1 second
-          
-          if let result = self.pendingToolResults[id] {
-            self.pendingToolResults.removeValue(forKey: id)
-            self.toolHandlers.removeValue(forKey: continuationKey)
-            
-            if let success = result["success"] as? Bool, success {
-              continuation.resume(returning: result["result"] ?? "")
-            } else {
-              let error = result["error"] as? String ?? "Unknown tool execution error"
-              continuation.resume(throwing: NSError(
-                domain: "ToolExecutionError",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey: error]
-              ))
-            }
-            return
-          }
-        }
+        try await Task.sleep(nanoseconds: 30_000_000_000) // races with tool result 
         
-        // Timeout
-        self.toolHandlers.removeValue(forKey: continuationKey)
-        continuation.resume(throwing: NSError(
-          domain: "ToolExecutionError",
-          code: 2,
-          userInfo: [NSLocalizedDescriptionKey: "Tool execution timeout"]
-        ))
+        if self.toolHandlers[continuationKey] != nil {
+          self.toolHandlers.removeValue(forKey: continuationKey)
+          continuation.resume(throwing: NSError(
+            domain: "ToolExecutionError",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "Tool execution timeout"]
+          ))
+        }
       }
     }
   }
@@ -595,7 +574,6 @@ class AppleLLMModule: RCTEventEmitter {
     session = nil
     registeredTools.removeAll()
     toolHandlers.removeAll()
-    pendingToolResults.removeAll()
     resolve(true)
   }
 }

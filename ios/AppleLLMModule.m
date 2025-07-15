@@ -6,6 +6,7 @@
 
 #import <React/RCTBridgeModule.h>
 
+
 @interface RCT_EXTERN_MODULE (AppleLLMModule, NSObject)
 
 // Generate structured model from LLM based on input options
