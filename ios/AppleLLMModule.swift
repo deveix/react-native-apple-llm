@@ -447,7 +447,8 @@ class AppleLLMModule: RCTEventEmitter {
     let maxTokens = options["maxTokens"] as? Int
     let temperature = options["temperature"] as? Double
     let toolTimeout = options["toolTimeout"] as? Int ?? 30000 // default to 30 seconds
-    
+    self.toolTimeout = toolTimeout
+
     Task {
       do {
         var generationOptions = GenerationOptions(sampling: .greedy)
@@ -465,41 +466,6 @@ class AppleLLMModule: RCTEventEmitter {
           to: prompt,
           options: generationOptions
         )
-        
-        // Check if tools were invoked and handle the complete response
-        var response: [String: Any] = [:]
-        
-        // Extract the main content
-        let content = try flattenGeneratedContent(result.content)
-        response["content"] = content
-        
-        // Check for tool invocations in the response
-        if let toolInvocations = result.toolInvocations {
-          var toolCalls: [[String: Any]] = []
-          
-          for invocation in toolInvocations {
-            let toolCall: [String: Any] = [
-              "name": invocation.tool.name,
-              "parameters": invocation.parameters,
-              "id": invocation.id?.uuidString ?? UUID().uuidString
-            ]
-            toolCalls.append(toolCall)
-          }
-          
-          response["toolCalls"] = toolCalls
-          response["hasToolCalls"] = true
-        } else {
-          response["hasToolCalls"] = false
-        }
-        
-        // Include usage metadata if available
-        if let usage = result.usage {
-          response["usage"] = [
-            "promptTokens": usage.promptTokens,
-            "completionTokens": usage.completionTokens,
-            "totalTokens": usage.totalTokens
-          ]
-        }
         
         resolve(response)
         
@@ -550,7 +516,7 @@ class AppleLLMModule: RCTEventEmitter {
       
       // Set up a timeout in case the tool never returns, maybe there is a better way to do this? also possibly let the user set the timeout 
       Task {
-        try await Task.sleep(nanoseconds: 30_000_000_000) // races with tool result 
+        try await Task.sleep(nanoseconds: self.toolTimeout) // races with tool result 
         
         if self.toolHandlers[continuationKey] != nil {
           self.toolHandlers.removeValue(forKey: continuationKey)

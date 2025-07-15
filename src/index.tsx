@@ -13,7 +13,6 @@ import {
   LLMGenerateOptions,
   LLMGenerateTextOptions,
   LLMGenerateWithToolsOptions,
-  GenerateWithToolsResponse,
   ToolDefinition,
 } from "./types";
 
@@ -30,8 +29,14 @@ export const isFoundationModelsEnabled =
  * Set up the LLM session 
  */
 export const configureSession = async (
-  options: LLMConfigOptions
+  options: LLMConfigOptions,
+  tools?: ToolDefinition[]
 ): Promise<boolean> => {
+  if (tools) {
+    await Promise.all(tools.map(async (tool) => {
+      await registerTool(tool);
+    }));
+  }
   return AppleLLMModule.configureSession(options);
 };
 
@@ -59,6 +64,7 @@ export const generateStructuredOutput = async (
  * Reset the LLM session
  */
 export const resetSession = async (): Promise<boolean> => {
+  toolHandlers.clear();
   return AppleLLMModule.resetSession();
 };
 
@@ -68,7 +74,7 @@ const toolHandlers = new Map<string, (parameters: any) => Promise<any>>();
 /**
  * Register a tool that can be called by the LLM
  */
-export const registerTool = async (
+const registerTool = async (
   toolDefinition: ToolDefinition,
 ): Promise<boolean> => {
   // map the name to the handler 
@@ -83,7 +89,7 @@ export const registerTool = async (
  */
 export const generateWithTools = async (
   options: LLMGenerateWithToolsOptions
-): Promise<GenerateWithToolsResponse> => {
+): Promise<any> => {
 
   // start listening for tool calls
   const subscription = eventEmitter.addListener(
@@ -123,18 +129,5 @@ export const generateWithTools = async (
   return result;
 };
 
-/**
- * Unregister a tool
- */
-export const unregisterTool = (toolName: string): void => {
-  toolHandlers.delete(toolName);
-};
-
-/**
- * Get all registered tool names
- */
-export const getRegisteredTools = (): string[] => {
-  return Array.from(toolHandlers.keys());
-};
 
 export * from "./types";

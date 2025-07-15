@@ -91,26 +91,20 @@ const generateSimpleText = async () => {
 };
 ```
 
-## 🛠️ Tool Usage
+## 🛠️ Tool Usage (currently does not support structured response)
 
 ```tsx
 import {
   isFoundationModelsEnabled,
   configureSession,
   generateText,
-  registerTool,
   ToolDefinition,
   ToolSchema
 } from "react-native-apple-llm";
 
-// first perform the same availability check as above
-// then configure session
+// don't forget to perform the same availability check as above
 
-await configureSession({
-    instructions: "You are a helpful assistant.",
-  });
-
-// define a tool 
+// define your tools
 const weatherSchema: ToolSchema = {
     name: 'weather',
     description: 'Get the current weather in a given location',
@@ -122,26 +116,31 @@ const weatherSchema: ToolSchema = {
       }
     }
   }
+
+// the input of the tool function should be a single JSON-style record 
 const weatherHandler = async (param: {city: string}) => {
   return `The weather in ${param.city} is severe thunderstorms. Take shelter immediately.`;
 }
 
-const weatherTool: ToolDefinition = {weatherSchema, weatherHandler}
-// register your tool
-registerTool(weatherTool)
 
-const response = await generateText({
+const weatherTool: ToolDefinition = {schema: weatherSchema, handler: weatherHandler}
+// then configure session
+await configureSession({
+    instructions: "You are a helpful assistant.",
+    tools: [weatherTool]
+  });
+
+const response = await generateWithTools({
   prompt: "What is the weather in Monrovia, California?",
 });
 
-console.log(response);
+console.log(response.content);
 ;
 ```
 
 ## 📋 TODO
 
 - [ ] Streaming support using `Event Emitters`
-- [ ] Tool creation and invocation support
 - [ ] Schema as zod
 - [ ] Function calling capabilities
 

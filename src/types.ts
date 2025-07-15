@@ -54,16 +54,6 @@ export interface ToolCall {
   id: string;
 }
 
-export interface GenerateWithToolsResponse {
-  content: any;
-  hasToolCalls: boolean;
-  toolCalls?: ToolCall[];
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
-}
 
 export type FoundationModelsAvailability =
   | "available"
