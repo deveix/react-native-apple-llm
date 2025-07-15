@@ -350,6 +350,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 1. Clone the repository
 2. Install dependencies: `yarn install`
 3. Build the project: `yarn build`
+4. example project found [here](https://github.com/deveix/apple-llm-test).
 
 ## 📄 License
 
