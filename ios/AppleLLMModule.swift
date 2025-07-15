@@ -218,8 +218,7 @@ class AppleLLMModule: RCTEventEmitter {
         childProperty = DynamicGenerationSchema.Property(
           name: key, description: description, schema: nestedSchema)
       }
-      // TODO: handle array
-     
+      // TODO: handle array?
       else {
         childProperty = schemaForType(name: key, type: type ?? "string", description: description)
       }
@@ -416,14 +415,14 @@ class AppleLLMModule: RCTEventEmitter {
     rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
     guard let id = result["id"] as? String else {
-      reject("INVALID_RESULT", "Tool result must have an id", nil)
+      reject("INVALID_RESULT", "Missing tool call id", nil)
       return
     }
     
-    // call handler and remove from pending 
+    // here we call handler and remove from pending 
     if let handler = toolHandlers[id] {
       handler(id, result as [String: Any])
-      toolHandlers.removeValue(forKey: id)
+      toolHandlers.removeValue(forKey: id) // remove from pending 
     }
     
     resolve(true)
@@ -445,10 +444,9 @@ class AppleLLMModule: RCTEventEmitter {
       return
     }
     
-    // Get optional parameters for tool calling
     let maxTokens = options["maxTokens"] as? Int
     let temperature = options["temperature"] as? Double
-    let enableToolCalling = options["enableToolCalling"] as? Bool ?? true
+    let toolTimeout = options["toolTimeout"] as? Int ?? 30000 // default to 30 seconds
     
     Task {
       do {
@@ -517,10 +515,10 @@ class AppleLLMModule: RCTEventEmitter {
   
   func invokeTool(name: String, id: String, parameters: [String: Any]) async throws -> Any {
     return try await withCheckedThrowingContinuation { continuation in
-      // Store the continuation to resolve when React Native sends back the result
+      // Store the continuation to resolve
       let continuationKey = id
       
-      // Create a handler to resolve the continuation when result comes back
+      // Create a handler to resolve 
       let handler = { (resultId: String, result: [String: Any]) in
         if resultId == id {
           if let success = result["success"] as? Bool, success {

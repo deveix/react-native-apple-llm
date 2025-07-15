@@ -15,16 +15,20 @@ export interface ToolParameter {
   name: string;
   enum?: string[]; 
 }
-
-export interface ToolDefinition {
+// this describes the tool
+export interface ToolSchema {
   name: string;
   description: string;
   parameters: { [key: string]: ToolParameter };
 }
+// tool description + the actual function 
+export interface ToolDefinition {
+  handler: (parameters: any) => Promise<any>; // parameter should always look like a json 
+  schema: ToolSchema;
+}
 
 export interface LLMConfigOptions {
   instructions?: string;
-  tools?: ToolDefinition[];
 }
 
 export interface LLMGenerateOptions {
@@ -38,11 +42,10 @@ export interface LLMGenerateTextOptions {
 
 export interface LLMGenerateWithToolsOptions {
   prompt: string;
-  tools?: ToolDefinition[];
   maxToolCalls?: number;
   maxTokens?: number;
   temperature?: number;
-  enableToolCalling?: boolean;
+  toolTimeout?: number; // in milliseconds
 }
 
 export interface ToolCall {

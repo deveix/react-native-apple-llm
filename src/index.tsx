@@ -27,18 +27,11 @@ export const isFoundationModelsEnabled =
   };
 
 /**
- * Set up the LLM session with optional instructions and tools
+ * Set up the LLM session 
  */
 export const configureSession = async (
   options: LLMConfigOptions
 ): Promise<boolean> => {
-  // Register tools if provided
-  if (options.tools) {
-    await Promise.all(options.tools.map(async (tool) => {
-      await AppleLLMModule.registerTool(tool);
-    }));
-  }
-  
   return AppleLLMModule.configureSession(options);
 };
 
@@ -77,13 +70,12 @@ const toolHandlers = new Map<string, (parameters: any) => Promise<any>>();
  */
 export const registerTool = async (
   toolDefinition: ToolDefinition,
-  handler: (parameters: any) => Promise<any>
 ): Promise<boolean> => {
-  // Store the handler for later execution
-  toolHandlers.set(toolDefinition.name, handler);
+  // map the name to the handler 
+  toolHandlers.set(toolDefinition.schema.name, toolDefinition.handler);
   
   // Register the tool definition with the native module
-  return AppleLLMModule.registerTool(toolDefinition);
+  return AppleLLMModule.registerTool(toolDefinition.schema);
 };
 
 /**
@@ -92,13 +84,14 @@ export const registerTool = async (
 export const generateWithTools = async (
   options: LLMGenerateWithToolsOptions
 ): Promise<GenerateWithToolsResponse> => {
-  // Set up tool invocation listener
+
+  // start listening for tool calls
   const subscription = eventEmitter.addListener(
     'ToolInvocation',
     async (event: { name: string; id: string; parameters: any }) => {
       try {
         const handler = toolHandlers.get(event.name);
-        if (!handler) {
+        if (!handler) { // fail fast if no handler is registered 
           await AppleLLMModule.handleToolResult({
             id: event.id,
             success: false,
@@ -107,7 +100,7 @@ export const generateWithTools = async (
           return;
         }
         
-        const result = await handler(event.parameters);
+        const result = await handler(event.parameters); // event.parameters is json style
         
         await AppleLLMModule.handleToolResult({
           id: event.id,
@@ -123,22 +116,11 @@ export const generateWithTools = async (
       }
     }
   );
-  
-  try {
-    // Register all tools first if provided
-    if (options.tools) {
-      for (const tool of options.tools) {
-        await AppleLLMModule.registerTool(tool);
-      }
-    }
-    
-    // Generate with tools
-    const result = await AppleLLMModule.generateWithTools(options);
-    return result;
-  } finally {
-    // Clean up listener
-    subscription.remove();
-  }
+
+  // generate with tools
+  const result = await AppleLLMModule.generateWithTools(options);
+  subscription.remove(); // clean up listener 
+  return result;
 };
 
 /**
