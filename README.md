@@ -91,6 +91,53 @@ const generateSimpleText = async () => {
 };
 ```
 
+## 🛠️ Tool Usage
+
+```tsx
+import {
+  isFoundationModelsEnabled,
+  configureSession,
+  generateText,
+  registerTool,
+  ToolDefinition,
+  ToolSchema
+} from "react-native-apple-llm";
+
+// first perform the same availability check as above
+// then configure session
+
+await configureSession({
+    instructions: "You are a helpful assistant.",
+  });
+
+// define a tool 
+const weatherSchema: ToolSchema = {
+    name: 'weather',
+    description: 'Get the current weather in a given location',
+    parameters:  {
+      city: {
+        type: 'string',
+        description: 'The city to get the weather for',
+        name: 'city'
+      }
+    }
+  }
+const weatherHandler = async (param: {city: string}) => {
+  return `The weather in ${param.city} is severe thunderstorms. Take shelter immediately.`;
+}
+
+const weatherTool: ToolDefinition = {weatherSchema, weatherHandler}
+// register your tool
+registerTool(weatherTool)
+
+const response = await generateText({
+  prompt: "What is the weather in Monrovia, California?",
+});
+
+console.log(response);
+;
+```
+
 ## 📋 TODO
 
 - [ ] Streaming support using `Event Emitters`
