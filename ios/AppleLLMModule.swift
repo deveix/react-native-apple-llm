@@ -8,91 +8,129 @@ import Foundation
 import FoundationModels
 import React
 
+/// A type that can represent any valid JSON value.
+enum JSONValue: Codable, Sendable, Hashable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case array([JSONValue])
+    case dictionary([String: JSONValue])
+    case null
+
+    /// Converts the enum case to a standard Swift `Any?` type.
+    var anyValue: Any? {
+        switch self {
+        case .string(let value): return value
+        case .number(let value): return value
+        case .bool(let value): return value
+        case .array(let value): return value.map { $0.anyValue }
+        case .dictionary(let value): return value.mapValues { $0.anyValue }
+        case .null: return nil
+        }
+    }
+    
+    // The full custom Codable implementation is required here.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let value = try? container.decode(String.self) { self = .string(value) }
+        else if let value = try? container.decode(Double.self) { self = .number(value) }
+        else if let value = try? container.decode(Bool.self) { self = .bool(value) }
+        else if let value = try? container.decode([JSONValue].self) { self = .array(value) }
+        else if let value = try? container.decode([String: JSONValue].self) { self = .dictionary(value) }
+        else if container.decodeNil() { self = .null }
+        else {
+            throw DecodingError.typeMismatch(JSONValue.self, .init(codingPath: decoder.codingPath, debugDescription: "Could not decode JSON value."))
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .string(let value): try container.encode(value)
+        case .number(let value): try container.encode(value)
+        case .bool(let value): try container.encode(value)
+        case .array(let value): try container.encode(value)
+        case .dictionary(let value): try container.encode(value)
+        case .null: try container.encodeNil()
+        }
+    }
+}
+
 @available(iOS 26, *)
 class BridgeTool: Tool {
-  let name: String
-  let description: String
-  private let parameters: [String: [String: Any]]
-  private weak var module: AppleLLMModule?
-  
-  init(name: String, description: String, parameters: [String: [String: Any]], module: AppleLLMModule) {
-    self.name = name
-    self.description = description
-    self.parameters = parameters
-    self.module = module
-  }
-  
-  func invoke(with parameters: [String: Any]) async throws -> Any {
-    guard let module = module else {
-      throw NSError(domain: "BridgeToolError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Module reference lost"])
-    }
-    
-    let id = UUID().uuidString
-    return try await module.invokeTool(name: name, id: id, parameters: parameters)
-  }
-  
-  var parameterSchema: GenerationSchema {
-    do {
-      return try GenerationSchema(root: buildDynamicSchema(from: parameters), dependencies: [])
-    } catch {
-      throw error
-    }
-  }
-  // this function builds the dynamic schema obj for the tool parameters
-  private func buildDynamicSchema(from parameters: [String: [String: Any]]) -> DynamicGenerationSchema {
-    var properties: [DynamicGenerationSchema.Property] = []
-    
-    for (key, paramDef) in parameters {
-      guard let type = paramDef["type"] as? String else { continue }
-      let description = paramDef["description"] as? String
-      let enumValues = paramDef["enum"] as? [String]
-      
-      let property: DynamicGenerationSchema.Property
-      
-      if let enumValues = enumValues {
-        let enumSchema = DynamicGenerationSchema(
-          name: key,
-          description: description,
-          anyOf: enumValues
-        )
-        property = DynamicGenerationSchema.Property(
-          name: key,
-          description: description,
-          schema: enumSchema
-        )
-      } else {
-        property = schemaPropertyForType(name: key, type: type, description: description)
-      }
-      
-      properties.append(property)
-    }
-    
-    return DynamicGenerationSchema(name: name, properties: properties)
-  }
 
-  // maps the type to the generable type
-  private func schemaPropertyForType(name: String, type: String, description: String?) -> DynamicGenerationSchema.Property {
-    let schema: DynamicGenerationSchema
-    
-    switch type {
-    case "string":
-      schema = DynamicGenerationSchema(type: AppleLLMModule.GenerableString.self)
-    case "integer":
-      schema = DynamicGenerationSchema(type: AppleLLMModule.GenerableInt.self)
-    case "number":
-      schema = DynamicGenerationSchema(type: AppleLLMModule.GenerableNumber.self)
-    case "boolean":
-      schema = DynamicGenerationSchema(type: AppleLLMModule.GenerableBool.self)
-    default:
-      schema = DynamicGenerationSchema(type: AppleLLMModule.GenerableString.self)
+    typealias Input = [String: JSONValue]
+
+    let name: String
+    let description: String
+    let schema: GenerationSchema
+    private weak var module: AppleLLMModule?
+  
+    init(name: String, description: String, parameters: [String: [String: Any]], module: AppleLLMModule) {
+        self.name = name
+        self.description = description
+        self.module = module
+        
+        let rootSchema = BridgeTool.buildDynamicSchema(name: name, from: parameters)
+        self.schema = try! GenerationSchema(root: rootSchema, dependencies: [])
     }
+
+    func call(arguments: Input) async throws -> ToolOutput {
+        guard let module = module else {
+            throw NSError(domain: "BridgeToolError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Module reference lost"])
+        }
     
-    return DynamicGenerationSchema.Property(
-      name: name,
-      description: description,
-      schema: schema
-    )
-  }
+        let invocationArgs = arguments.compactMapValues { $0.anyValue }
+        
+        let id = UUID().uuidString
+        return ToolOutput(await module.invokeTool(name: name, id: id, parameters: invocationArgs))
+    }
+  
+    private static func buildDynamicSchema(name: String, from parameters: [String: [String: Any]]) -> DynamicGenerationSchema {
+        var properties: [DynamicGenerationSchema.Property] = []
+        
+        for (key, paramDef) in parameters {
+            guard let type = paramDef["type"] as? String else { continue }
+            let description = paramDef["description"] as? String
+            let enumValues = paramDef["enum"] as? [String]
+            
+            let property: DynamicGenerationSchema.Property
+            
+            if let enumValues = enumValues {
+                let enumSchema = DynamicGenerationSchema(
+                    name: key,
+                    description: description,
+                    anyOf: enumValues.map { .string($0) }
+                )
+                property = .init(name: key, description: description, schema: enumSchema)
+            } else {
+                property = schemaPropertyForType(name: key, type: type, description: description)
+            }
+            properties.append(property)
+        }
+        
+        // The root schema must be an object containing the properties.
+        return DynamicGenerationSchema(name: name, type: .object, properties: properties)
+    }
+
+    private static func schemaPropertyForType(name: String, type: String, description: String?) -> DynamicGenerationSchema.Property {
+        let primitive: GenerationSchema.Primitive
+        
+        switch type.lowercased() {
+        case "string":
+            primitive = .string
+        case "integer":
+            primitive = .integer
+        case "number":
+            primitive = .number
+        case "boolean":
+            primitive = .boolean
+        default:
+            primitive = .string
+        }
+        
+        return .init(name: name, description: description, schema: .init(type: primitive))
+    }
 }
 
 @objc(AppleLLMModule)
@@ -117,6 +155,7 @@ class AppleLLMModule: RCTEventEmitter {
   private var session: LanguageModelSession?
   private var registeredTools: [String: BridgeTool] = [:]
   private var toolHandlers: [String: (String, [String: Any]) -> Void] = [:]
+  private var toolTimeout: Int = 30000
 
   @objc
   func isFoundationModelsEnabled(
@@ -444,8 +483,8 @@ class AppleLLMModule: RCTEventEmitter {
       return
     }
     
-    let maxTokens = options["maxTokens"] as? Int
-    let temperature = options["temperature"] as? Double
+    let maxTokens = options["maxTokens"] as? Int ?? 1000 // default to 1000 tokens
+    let temperature = options["temperature"] as? Double ?? 0.5 // default to 0.5
     let toolTimeout = options["toolTimeout"] as? Int ?? 30000 // default to 30 seconds
     self.toolTimeout = toolTimeout
 
@@ -467,7 +506,7 @@ class AppleLLMModule: RCTEventEmitter {
           options: generationOptions
         )
         
-        resolve(response)
+        resolve(result.content)
         
       } catch {
         reject(
@@ -516,7 +555,7 @@ class AppleLLMModule: RCTEventEmitter {
       
       // Set up a timeout in case the tool never returns, maybe there is a better way to do this? also possibly let the user set the timeout 
       Task {
-        try await Task.sleep(nanoseconds: self.toolTimeout) // races with tool result 
+        try await Task.sleep(nanoseconds: self.toolTimeout ?? 30000) // races with tool result 
         
         if self.toolHandlers[continuationKey] != nil {
           self.toolHandlers.removeValue(forKey: continuationKey)
