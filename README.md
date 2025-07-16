@@ -135,50 +135,6 @@ console.log(response.content);
 session.dispose();
 ```
 
-```tsx
-import {
-  isFoundationModelsEnabled,
-  configureSession,
-  generateText,
-  ToolDefinition,
-  ToolSchema
-} from "react-native-apple-llm";
-
-// don't forget to perform the same availability check as above
-
-// define your tools
-const weatherSchema: ToolSchema = {
-    name: 'weather',
-    description: 'Get the current weather in a given location',
-    parameters:  {
-      city: {
-        type: 'string',
-        description: 'The city to get the weather for',
-        name: 'city'
-      }
-    }
-  }
-
-// the input of the tool function should be a single JSON-style record 
-const weatherHandler = async (param: {city: string}) => {
-  return `The weather in ${param.city} is severe thunderstorms. Take shelter immediately.`;
-}
-
-
-const weatherTool: ToolDefinition = {schema: weatherSchema, handler: weatherHandler}
-// then configure session
-await configureSession({
-    instructions: "You are a helpful assistant.",
-    tools: [weatherTool]
-  });
-
-const response = await generateWithTools({
-  prompt: "What is the weather in Monrovia, California?",
-});
-
-console.log(response.content);
-;
-```
 
 ## 📋 TODO
 
@@ -188,9 +144,9 @@ console.log(response.content);
 
 ## 📚 API Reference
 
-### AppleLLMSession Class (Recommended)
+### AppleLLMSession Class 
 
-The `AppleLLMSession` class provides better session management and state isolation:
+The `AppleLLMSession` class provides context and tool management for each isolated session:
 
 #### Constructor
 
@@ -266,7 +222,7 @@ Checks if Foundation Models (Apple Intelligence) are enabled and available on th
 
 - `"available"` - Apple Intelligence is ready to use
 - `"appleIntelligenceNotEnabled"` - User needs to enable Apple Intelligence in Settings
-- `"modelNotReady"` - Model is downloading or preparing
+- `"modelNotReady"` - Model is downloading or preparing (or mysterious system issues)
 - `"unavailable"` - Device doesn't support Apple Intelligence
 
 ```tsx
