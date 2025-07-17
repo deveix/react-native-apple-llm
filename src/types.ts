@@ -10,7 +10,7 @@ export type StructureSchema = {
 };
 
 export interface ToolParameter {
-  type: "string" | "integer" | "number" | "boolean" | "object" | "array";
+  type: "string" | "integer" | "number" | "boolean" | "object";
   description: string;
   name: string;
   enum?: string[]; 

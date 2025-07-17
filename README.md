@@ -131,7 +131,7 @@ const response = await session.generateWithTools({
   prompt: "What is the weather in Monrovia, California?",
 }); // note that the model censors the prompts sometimes
 
-console.log(response.content);
+console.log(response);
 session.dispose();
 ```
 
