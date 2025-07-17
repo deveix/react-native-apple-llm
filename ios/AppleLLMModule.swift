@@ -8,129 +8,42 @@ import Foundation
 import FoundationModels
 import React
 
-/// A type that can represent any valid JSON value.
-enum JSONValue: Codable, Sendable, Hashable {
-    case string(String)
-    case number(Double)
-    case bool(Bool)
-    case array([JSONValue])
-    case dictionary([String: JSONValue])
-    case null
-
-    /// Converts the enum case to a standard Swift `Any?` type.
-    var anyValue: Any? {
-        switch self {
-        case .string(let value): return value
-        case .number(let value): return value
-        case .bool(let value): return value
-        case .array(let value): return value.map { $0.anyValue }
-        case .dictionary(let value): return value.mapValues { $0.anyValue }
-        case .null: return nil
-        }
-    }
-    
-    // The full custom Codable implementation is required here.
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let value = try? container.decode(String.self) { self = .string(value) }
-        else if let value = try? container.decode(Double.self) { self = .number(value) }
-        else if let value = try? container.decode(Bool.self) { self = .bool(value) }
-        else if let value = try? container.decode([JSONValue].self) { self = .array(value) }
-        else if let value = try? container.decode([String: JSONValue].self) { self = .dictionary(value) }
-        else if container.decodeNil() { self = .null }
-        else {
-            throw DecodingError.typeMismatch(JSONValue.self, .init(codingPath: decoder.codingPath, debugDescription: "Could not decode JSON value."))
-        }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        switch self {
-        case .string(let value): try container.encode(value)
-        case .number(let value): try container.encode(value)
-        case .bool(let value): try container.encode(value)
-        case .array(let value): try container.encode(value)
-        case .dictionary(let value): try container.encode(value)
-        case .null: try container.encodeNil()
-        }
-    }
-}
 
 @available(iOS 26, *)
 class BridgeTool: Tool {
 
-    typealias Input = [String: JSONValue]
+    typealias Arguments = GeneratedContent
 
     let name: String
     let description: String
     let schema: GenerationSchema
     private weak var module: AppleLLMModule?
+
+    var parameters: GenerationSchema {
+        return schema
+    }
   
     init(name: String, description: String, parameters: [String: [String: Any]], module: AppleLLMModule) {
         self.name = name
         self.description = description
         self.module = module
         
-        let rootSchema = BridgeTool.buildDynamicSchema(name: name, from: parameters)
+        let rootSchema = module.dynamicSchema(from: parameters, name: name)
         self.schema = try! GenerationSchema(root: rootSchema, dependencies: [])
     }
 
-    func call(arguments: Input) async throws -> ToolOutput {
+    func call(arguments: GeneratedContent) async throws -> ToolOutput {
         guard let module = module else {
             throw NSError(domain: "BridgeToolError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Module reference lost"])
         }
     
-        let invocationArgs = arguments.compactMapValues { $0.anyValue }
+        let invocationArgs = try module.flattenGeneratedContent(arguments) as? [String: Any] ?? [:]
         
         let id = UUID().uuidString
-        return ToolOutput(await module.invokeTool(name: name, id: id, parameters: invocationArgs))
+        return ToolOutput(try await module.invokeTool(name: name, id: id, parameters: invocationArgs))
     }
   
-    private static func buildDynamicSchema(name: String, from parameters: [String: [String: Any]]) -> DynamicGenerationSchema {
-        var properties: [DynamicGenerationSchema.Property] = []
-        
-        for (key, paramDef) in parameters {
-            guard let type = paramDef["type"] as? String else { continue }
-            let description = paramDef["description"] as? String
-            let enumValues = paramDef["enum"] as? [String]
-            
-            let property: DynamicGenerationSchema.Property
-            
-            if let enumValues = enumValues {
-                let enumSchema = DynamicGenerationSchema(
-                    name: key,
-                    description: description,
-                    anyOf: enumValues.map { .string($0) }
-                )
-                property = .init(name: key, description: description, schema: enumSchema)
-            } else {
-                property = schemaPropertyForType(name: key, type: type, description: description)
-            }
-            properties.append(property)
-        }
-        
-        // The root schema must be an object containing the properties.
-        return DynamicGenerationSchema(name: name, type: .object, properties: properties)
-    }
 
-    private static func schemaPropertyForType(name: String, type: String, description: String?) -> DynamicGenerationSchema.Property {
-        let primitive: GenerationSchema.Primitive
-        
-        switch type.lowercased() {
-        case "string":
-            primitive = .string
-        case "integer":
-            primitive = .integer
-        case "number":
-            primitive = .number
-        case "boolean":
-            primitive = .boolean
-        default:
-            primitive = .string
-        }
-        
-        return .init(name: name, description: description, schema: .init(type: primitive))
-    }
 }
 
 @objc(AppleLLMModule)
@@ -139,12 +52,12 @@ class BridgeTool: Tool {
 class AppleLLMModule: RCTEventEmitter {
 
   @objc
-  static func moduleName() -> String! {
+  override static func moduleName() -> String! {
     return "AppleLLMModule"
   }
 
   @objc
-  static func requiresMainQueueSetup() -> Bool {
+  override static func requiresMainQueueSetup() -> Bool {
     return false
   }
   
@@ -460,7 +373,7 @@ class AppleLLMModule: RCTEventEmitter {
     
     // here we call handler and remove from pending 
     if let handler = toolHandlers[id] {
-      handler(id, result as [String: Any])
+      handler(id, result as! [String: Any])
       toolHandlers.removeValue(forKey: id) // remove from pending 
     }
     
@@ -492,13 +405,11 @@ class AppleLLMModule: RCTEventEmitter {
       do {
         var generationOptions = GenerationOptions(sampling: .greedy)
         
-          if let maxTokens = maxTokens {
-          generationOptions = GenerationOptions(
+        generationOptions = GenerationOptions(
             sampling: generationOptions.sampling,
             temperature: temperature,
             maximumResponseTokens: maxTokens
-          )
-        }
+        )
         
         // Generate response with tools enabled
         let result = try await session.respond(
@@ -518,7 +429,7 @@ class AppleLLMModule: RCTEventEmitter {
     }
   }
   
-  func invokeTool(name: String, id: String, parameters: [String: Any]) async throws -> Any {
+  func invokeTool(name: String, id: String, parameters: [String: Any]) async throws -> String {
     return try await withCheckedThrowingContinuation { continuation in
       // Store the continuation to resolve
       let continuationKey = id
@@ -527,7 +438,7 @@ class AppleLLMModule: RCTEventEmitter {
       let handler = { (resultId: String, result: [String: Any]) in
         if resultId == id {
           if let success = result["success"] as? Bool, success {
-            continuation.resume(returning: result["result"] ?? "")
+            continuation.resume(returning: result["result"] as? String ?? "No result")
           } else {
             let error = result["error"] as? String ?? "Unknown tool execution error"
             continuation.resume(throwing: NSError(
@@ -555,7 +466,7 @@ class AppleLLMModule: RCTEventEmitter {
       
       // Set up a timeout in case the tool never returns, maybe there is a better way to do this? also possibly let the user set the timeout 
       Task {
-        try await Task.sleep(nanoseconds: self.toolTimeout ?? 30000) // races with tool result 
+        try await Task.sleep(nanoseconds: UInt64(self.toolTimeout) * 1_000_000) // Convert ms to ns
         
         if self.toolHandlers[continuationKey] != nil {
           self.toolHandlers.removeValue(forKey: continuationKey)
