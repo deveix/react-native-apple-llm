@@ -2,7 +2,7 @@
 
 A React Native plugin to access Apple Intelligence Foundation Models using native on-device LLM APIs. This module lets you check model availability, create sessions, generate structured outputs (JSON), and text using Apple's LLMs, all from React Native.
 
-## 🚀 Features
+## Features
 
 - **On-device Apple Intelligence** - Access Apple's Foundation Models locally
 - **Privacy-focused** - All processing happens on-device, no data sent to servers
@@ -11,7 +11,7 @@ A React Native plugin to access Apple Intelligence Foundation Models using nativ
 - **Session management** - Configure and manage LLM sessions
 - **TypeScript support** - Full type safety and IntelliSense
 
-## 📱 Requirements
+## Requirements
 
 - iOS 26.0
 - Xcode 26
@@ -30,7 +30,7 @@ A React Native plugin to access Apple Intelligence Foundation Models using nativ
   <img src="https://img.shields.io/badge/Follow_on_X-000000?logo=x&logoColor=white&style=flat-square" alt="Follow on X"/>
 </a>
 
-## 📦 Installation
+## Installation
 
 1. Install the package:
 
@@ -50,7 +50,7 @@ npx pod-install
 cd ios && pod install
 ```
 
-## 🎯 Use Cases
+## Use Cases
 
 This plugin is perfect for building:
 
@@ -62,7 +62,7 @@ This plugin is perfect for building:
 - **Educational apps** with personalized AI tutoring
 - **Accessibility tools** with intelligent text processing
 
-## 🚀 Quick Start
+## Quick Start
 
 ```tsx
 import {
@@ -90,7 +90,7 @@ const generateSimpleText = async () => {
   console.log(response);
 };
 ```
-## 🛠️ Tool Usage 
+## Tool Usage 
 
 ```tsx
 import {
@@ -136,13 +136,13 @@ session.dispose();
 ```
 
 
-## 📋 TODO
+## TODO
 
 - [ ] Streaming support using `Event Emitters`
 - [ ] Schema as zod
 - [ ] Function calling capabilities
 
-## 📚 API Reference
+## API Reference
 
 ### AppleLLMSession Class 
 
@@ -234,33 +234,33 @@ if (status === "available") {
 
 ### Legacy Functions (Deprecated)
 
-> ⚠️ **Deprecated**: These functions are maintained for backward compatibility but are deprecated. Use the `AppleLLMSession` class instead for better session management.
+> **Deprecated**: These functions are maintained for backward compatibility but are deprecated. Use the `AppleLLMSession` class instead for better session management.
 
-#### `configureSession(options: LLMConfigOptions): Promise<boolean>` ⚠️
+#### `configureSession(options: LLMConfigOptions): Promise<boolean>` 
 
 **Deprecated**: Use `AppleLLMSession.configure()` instead.
 
 Configures the LLM session with system instructions and behavior.
 
 ```tsx
-// ❌ Deprecated
+// Deprecated
 await configureSession({
   instructions: "You are an expert React Native developer.",
 });
 
-// ✅ Recommended
+// Recommended
 const session = new AppleLLMSession();
 await session.configure({
   instructions: "You are an expert React Native developer.",
 });
 ```
 
-#### `generateStructuredOutput(options: LLMGenerateOptions): Promise<any>` ⚠️
+#### `generateStructuredOutput(options: LLMGenerateOptions): Promise<any>` 
 
 **Deprecated**: Use `AppleLLMSession.generateStructuredOutput()` instead.
 
 ```tsx
-// ❌ Deprecated
+// Deprecated
 const userInfo = await generateStructuredOutput({
   structure: {
     name: { type: "string", description: "User's full name" },
@@ -269,7 +269,7 @@ const userInfo = await generateStructuredOutput({
   prompt: "Extract user information: John is 25 years old",
 });
 
-// ✅ Recommended
+// Recommended
 const session = new AppleLLMSession();
 await session.configure({ instructions: "Extract user data." });
 const userInfo = await session.generateStructuredOutput({
@@ -281,17 +281,17 @@ const userInfo = await session.generateStructuredOutput({
 });
 ```
 
-#### `generateText(options: LLMGenerateTextOptions): Promise<string>` ⚠️
+#### `generateText(options: LLMGenerateTextOptions): Promise<string>` 
 
 **Deprecated**: Use `AppleLLMSession.generateText()` instead.
 
 ```tsx
-// ❌ Deprecated
+// Deprecated
 const explanation = await generateText({
   prompt: "Explain the benefits of on-device AI processing",
 });
 
-// ✅ Recommended
+// Recommended
 const session = new AppleLLMSession();
 await session.configure({ instructions: "Be helpful and informative." });
 const explanation = await session.generateText({
@@ -299,15 +299,15 @@ const explanation = await session.generateText({
 });
 ```
 
-#### `resetSession(): Promise<boolean>` ⚠️
+#### `resetSession(): Promise<boolean>` 
 
 **Deprecated**: Use `AppleLLMSession.reset()` instead.
 
 ```tsx
-// ❌ Deprecated
+// Deprecated
 await resetSession();
 
-// ✅ Recommended
+// Recommended
 await session.reset();
 ```
 
@@ -353,7 +353,7 @@ interface LLMGenerateTextOptions {
 }
 ```
 
-## 💡 Advanced Examples
+## Advanced Examples
 
 ### Building a Smart Recipe Parser
 
@@ -428,7 +428,7 @@ const extractContactInfo = async (businessCard: string) => {
 };
 ```
 
-## 🔒 Privacy & Security
+## Privacy & Security
 
 - **100% On-device processing** - No data leaves your device
 - **No internet required** - Works completely offline
@@ -436,7 +436,7 @@ const extractContactInfo = async (businessCard: string) => {
 - **No tracking or analytics** - This plugin doesn't collect any user data
 - **Secure by design** - Leverages iOS security and sandboxing
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -465,7 +465,7 @@ if (status === "unavailable") {
 }
 ```
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
@@ -476,13 +476,14 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 3. Build the project: `yarn build`
 4. Link the library: `npm link`
 5. Get the example project found [here](https://github.com/deveix/apple-llm-test).
-6. Install the library `npm link react-native-apple-llm`
+6. Install the library `npm add react-native-apple-llm`   
+7. Install the Pod `cd ios && pod install`
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE.md](LICENSE.md) for details.
 
-## 🔗 Related Projects
+## Related Projects
 
 - [Apple's Foundation Models Documentation](https://developer.apple.com/documentation/foundationmodels/)
 - [React Native Documentation](https://reactnative.dev/)
@@ -491,8 +492,8 @@ MIT License - see [LICENSE.md](LICENSE.md) for details.
 
 <div align="center">
 
-**Star ⭐ this repo if you find it helpful!**
+**Star this repo if you find it helpful!**
 
-Made with ❤️ by [Ahmed Kasem](https://github.com/deveix), [Erik](https://github.com/ecoArcGaming), and future contributors!
+Created by [Ahmed Kasem](https://github.com/deveix), [Erik](https://github.com/ecoArcGaming), and future contributors!
 
 </div>
