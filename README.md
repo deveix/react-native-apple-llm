@@ -112,8 +112,8 @@ const weatherSchema: ToolSchema = {
   }
 };
 
-const weatherHandler = async (param: {city: string}) => {
-  return `The weather in ${param.city} is severe thunderstorms. Take shelter immediately.`;
+const weatherHandler = async (param: any) => {
+  return `The weather in ${param.city.value} is severe thunderstorms. Take shelter immediately.`;
 };
 
 const weatherTool: ToolDefinition = {
@@ -129,7 +129,7 @@ await session.configure({
 
 const response = await session.generateWithTools({
   prompt: "What is the weather in Monrovia, California?",
-});
+}); // note that the model censors the prompts sometimes
 
 console.log(response.content);
 session.dispose();

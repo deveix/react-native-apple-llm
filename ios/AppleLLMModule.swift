@@ -10,7 +10,7 @@ import React
 
 
 @available(iOS 26, *)
-class BridgeTool: Tool {
+class BridgeTool: Tool, @unchecked Sendable {
 
     typealias Arguments = GeneratedContent
 
