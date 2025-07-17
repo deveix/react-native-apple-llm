@@ -2,7 +2,7 @@
 
 A React Native plugin to access Apple Intelligence Foundation Models using native on-device LLM APIs. This module lets you check model availability, create sessions, generate structured outputs (JSON), and text using Apple's LLMs, all from React Native.
 
-## 🚀 Features
+## Features
 
 - **On-device Apple Intelligence** - Access Apple's Foundation Models locally
 - **Privacy-focused** - All processing happens on-device, no data sent to servers
@@ -11,7 +11,7 @@ A React Native plugin to access Apple Intelligence Foundation Models using nativ
 - **Session management** - Configure and manage LLM sessions
 - **TypeScript support** - Full type safety and IntelliSense
 
-## 📱 Requirements
+## Requirements
 
 - iOS 26.0
 - Xcode 26
@@ -30,7 +30,7 @@ A React Native plugin to access Apple Intelligence Foundation Models using nativ
   <img src="https://img.shields.io/badge/Follow_on_X-000000?logo=x&logoColor=white&style=flat-square" alt="Follow on X"/>
 </a>
 
-## 📦 Installation
+## Installation
 
 1. Install the package:
 
@@ -50,7 +50,7 @@ npx pod-install
 cd ios && pod install
 ```
 
-## 🎯 Use Cases
+## Use Cases
 
 This plugin is perfect for building:
 
@@ -62,7 +62,7 @@ This plugin is perfect for building:
 - **Educational apps** with personalized AI tutoring
 - **Accessibility tools** with intelligent text processing
 
-## 🚀 Quick Start
+## Quick Start
 
 ```tsx
 import {
@@ -90,17 +90,129 @@ const generateSimpleText = async () => {
   console.log(response);
 };
 ```
+## Tool Usage 
 
-## 📋 TODO
+```tsx
+import {
+  AppleLLMSession,
+  ToolDefinition,
+  ToolSchema
+} from "react-native-apple-llm";
+
+// Define your tools
+const weatherSchema: ToolSchema = {
+  name: 'weather',
+  description: 'Get the current weather in a given location',
+  parameters: {
+    city: {
+      type: 'string',
+      description: 'The city to get the weather for',
+      name: 'city'
+    }
+  }
+};
+
+const weatherHandler = async (param: any) => {
+  return `The weather in ${param.city.value} is severe thunderstorms. Take shelter immediately.`;
+};
+
+const weatherTool: ToolDefinition = {
+  schema: weatherSchema, 
+  handler: weatherHandler
+};
+
+// Use with session
+const session = new AppleLLMSession();
+await session.configure({
+  instructions: "You are a helpful assistant.",
+}, [weatherTool]);
+
+const response = await session.generateWithTools({
+  prompt: "What is the weather in Monrovia, California?",
+}); // note that the model censors the prompts sometimes
+
+console.log(response);
+session.dispose();
+```
+
+
+## TODO
 
 - [ ] Streaming support using `Event Emitters`
-- [ ] Tool creation and invocation support
 - [ ] Schema as zod
 - [ ] Function calling capabilities
 
-## 📚 API Reference
+## API Reference
 
-### Methods
+### AppleLLMSession Class 
+
+The `AppleLLMSession` class provides context and tool management for each isolated session:
+
+#### Constructor
+
+```tsx
+const session = new AppleLLMSession();
+```
+
+#### `configure(options: LLMConfigOptions, tools?: ToolDefinition[]): Promise<boolean>`
+
+Configures the session with instructions and optional tools.
+
+```tsx
+await session.configure({
+  instructions: "You are a helpful assistant.",
+}, [weatherTool]);
+```
+
+#### `generateText(options: LLMGenerateTextOptions): Promise<any>`
+
+Generates natural text responses.
+
+```tsx
+const response = await session.generateText({
+  prompt: "Explain React Native",
+});
+```
+
+#### `generateStructuredOutput(options: LLMGenerateOptions): Promise<any>`
+
+Generates structured JSON output.
+
+```tsx
+const data = await session.generateStructuredOutput({
+  structure: { name: { type: "string" } },
+  prompt: "Extract name from: John Smith",
+});
+```
+
+#### `generateWithTools(options: LLMGenerateWithToolsOptions): Promise<any>`
+
+Generates text with tool calling capabilities.
+
+```tsx
+const response = await session.generateWithTools({
+  prompt: "What's the weather like?",
+  maxToolCalls: 3,
+});
+```
+
+#### `reset(): Promise<boolean>`
+
+Resets the session state.
+
+```tsx
+await session.reset();
+```
+
+#### `dispose(): void`
+
+Cleans up resources and event listeners.
+
+```tsx
+session.dispose();
+```
+
+### Global Functions
 
 #### `isFoundationModelsEnabled(): Promise<FoundationModelsAvailability>`
 
@@ -110,7 +222,7 @@ Checks if Foundation Models (Apple Intelligence) are enabled and available on th
 
 - `"available"` - Apple Intelligence is ready to use
 - `"appleIntelligenceNotEnabled"` - User needs to enable Apple Intelligence in Settings
-- `"modelNotReady"` - Model is downloading or preparing
+- `"modelNotReady"` - Model is downloading or preparing (or mysterious system issues)
 - `"unavailable"` - Device doesn't support Apple Intelligence
 
 ```tsx
@@ -120,71 +232,83 @@ if (status === "available") {
 }
 ```
 
-#### `configureSession(options: LLMConfigOptions): Promise<boolean>`
+### Legacy Functions (Deprecated)
+
+> **Deprecated**: These functions are maintained for backward compatibility but are deprecated. Use the `AppleLLMSession` class instead for better session management.
+
+#### `configureSession(options: LLMConfigOptions): Promise<boolean>` 
+
+**Deprecated**: Use `AppleLLMSession.configure()` instead.
 
 Configures the LLM session with system instructions and behavior.
 
-**Parameters:**
-
-- `options.instructions` (optional): System instructions that guide the LLM's behavior
-
 ```tsx
+// Deprecated
 await configureSession({
-  instructions:
-    "You are an expert React Native developer. Provide concise, practical answers.",
+  instructions: "You are an expert React Native developer.",
+});
+
+// Recommended
+const session = new AppleLLMSession();
+await session.configure({
+  instructions: "You are an expert React Native developer.",
 });
 ```
 
-#### `generateStructuredOutput(options: LLMGenerateOptions): Promise<any>`
+#### `generateStructuredOutput(options: LLMGenerateOptions): Promise<any>` 
 
-Generates structured output using a JSON schema. Perfect for extracting data, creating forms, or building structured responses.
-
-**Parameters:**
-
-- `options.structure`: JSON schema defining the expected output structure
-- `options.prompt`: The prompt/question for the LLM
+**Deprecated**: Use `AppleLLMSession.generateStructuredOutput()` instead.
 
 ```tsx
+// Deprecated
 const userInfo = await generateStructuredOutput({
   structure: {
     name: { type: "string", description: "User's full name" },
     age: { type: "number", description: "User's age" },
-    interests: {
-      type: "object",
-      properties: {
-        hobbies: { type: "string" },
-        skills: { type: "string" },
-      },
-    },
   },
-  prompt:
-    "Extract user information: John is 25 years old and loves programming and photography",
+  prompt: "Extract user information: John is 25 years old",
+});
+
+// Recommended
+const session = new AppleLLMSession();
+await session.configure({ instructions: "Extract user data." });
+const userInfo = await session.generateStructuredOutput({
+  structure: {
+    name: { type: "string", description: "User's full name" },
+    age: { type: "number", description: "User's age" },
+  },
+  prompt: "Extract user information: John is 25 years old",
 });
 ```
 
-#### `generateText(options: LLMGenerateTextOptions): Promise<string>`
+#### `generateText(options: LLMGenerateTextOptions): Promise<string>` 
 
-Generates natural text responses from the LLM.
-
-**Parameters:**
-
-- `options.prompt`: The prompt/question for the LLM
-
-**Returns:** Generated text as a string
+**Deprecated**: Use `AppleLLMSession.generateText()` instead.
 
 ```tsx
+// Deprecated
 const explanation = await generateText({
+  prompt: "Explain the benefits of on-device AI processing",
+});
+
+// Recommended
+const session = new AppleLLMSession();
+await session.configure({ instructions: "Be helpful and informative." });
+const explanation = await session.generateText({
   prompt: "Explain the benefits of on-device AI processing",
 });
 ```
 
-#### `resetSession(): Promise<boolean>`
+#### `resetSession(): Promise<boolean>` 
 
-Resets the current LLM session, clearing any previous context or instructions.
+**Deprecated**: Use `AppleLLMSession.reset()` instead.
 
 ```tsx
+// Deprecated
 await resetSession();
-// Session is now fresh and ready for new instructions
+
+// Recommended
+await session.reset();
 ```
 
 ### Types
@@ -229,7 +353,7 @@ interface LLMGenerateTextOptions {
 }
 ```
 
-## 💡 Advanced Examples
+## Advanced Examples
 
 ### Building a Smart Recipe Parser
 
@@ -304,7 +428,7 @@ const extractContactInfo = async (businessCard: string) => {
 };
 ```
 
-## 🔒 Privacy & Security
+## Privacy & Security
 
 - **100% On-device processing** - No data leaves your device
 - **No internet required** - Works completely offline
@@ -312,7 +436,7 @@ const extractContactInfo = async (businessCard: string) => {
 - **No tracking or analytics** - This plugin doesn't collect any user data
 - **Secure by design** - Leverages iOS security and sandboxing
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -341,7 +465,7 @@ if (status === "unavailable") {
 }
 ```
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
 
@@ -350,13 +474,16 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 1. Clone the repository
 2. Install dependencies: `yarn install`
 3. Build the project: `yarn build`
-4. example project found [here](https://github.com/deveix/apple-llm-test).
+4. Link the library: `npm link`
+5. Get the example project found [here](https://github.com/deveix/apple-llm-test).
+6. Install the library `npm add react-native-apple-llm`   
+7. Install the Pod `cd ios && pod install`
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE.md](LICENSE.md) for details.
 
-## 🔗 Related Projects
+## Related Projects
 
 - [Apple's Foundation Models Documentation](https://developer.apple.com/documentation/foundationmodels/)
 - [React Native Documentation](https://reactnative.dev/)
@@ -365,8 +492,8 @@ MIT License - see [LICENSE.md](LICENSE.md) for details.
 
 <div align="center">
 
-**Star ⭐ this repo if you find it helpful!**
+**Star this repo if you find it helpful!**
 
-Made with ❤️ by [Ahmed Kasem](https://github.com/deveix)
+Created by [Ahmed Kasem](https://github.com/deveix), [Erik](https://github.com/ecoArcGaming), and future contributors!
 
 </div>

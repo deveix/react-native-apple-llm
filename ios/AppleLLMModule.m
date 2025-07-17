@@ -6,6 +6,7 @@
 
 #import <React/RCTBridgeModule.h>
 
+
 @interface RCT_EXTERN_MODULE (AppleLLMModule, NSObject)
 
 // Generate structured model from LLM based on input options
@@ -25,5 +26,17 @@ RCT_EXTERN_METHOD(resetSession : (RCTPromiseResolveBlock)
 
 RCT_EXTERN_METHOD(isFoundationModelsEnabled : (RCTPromiseResolveBlock)
                       resolve rejecter : (RCTPromiseRejectBlock)reject)
+
+// Generate text with tool calling capabilities
+RCT_EXTERN_METHOD(generateWithTools : (NSDictionary *)options resolve : (
+    RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject)
+
+// Register tools for use with LLM
+RCT_EXTERN_METHOD(registerTool : (NSDictionary *)toolDefinition resolve : (
+    RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject)
+
+// Handle tool execution results from React Native
+RCT_EXTERN_METHOD(handleToolResult : (NSDictionary *)result resolve : (
+    RCTPromiseResolveBlock)resolve rejecter : (RCTPromiseRejectBlock)reject)
 
 @end

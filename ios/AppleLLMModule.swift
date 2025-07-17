@@ -8,22 +8,67 @@ import Foundation
 import FoundationModels
 import React
 
+
+@available(iOS 26, *)
+class BridgeTool: Tool, @unchecked Sendable {
+
+    typealias Arguments = GeneratedContent
+
+    let name: String
+    let description: String
+    let schema: GenerationSchema
+    private weak var module: AppleLLMModule?
+
+    var parameters: GenerationSchema {
+        return schema
+    }
+  
+    init(name: String, description: String, parameters: [String: [String: Any]], module: AppleLLMModule) {
+        self.name = name
+        self.description = description
+        self.module = module
+        
+        let rootSchema = module.dynamicSchema(from: parameters, name: name)
+        self.schema = try! GenerationSchema(root: rootSchema, dependencies: [])
+    }
+
+    func call(arguments: GeneratedContent) async throws -> ToolOutput {
+        guard let module = module else {
+            throw NSError(domain: "BridgeToolError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Module reference lost"])
+        }
+    
+        let invocationArgs = try module.flattenGeneratedContent(arguments) as? [String: Any] ?? [:]
+        
+        let id = UUID().uuidString
+        return ToolOutput(try await module.invokeTool(name: name, id: id, parameters: invocationArgs))
+    }
+  
+
+}
+
 @objc(AppleLLMModule)
 @available(iOS 26, *)
 @objcMembers
-class AppleLLMModule: NSObject {
+class AppleLLMModule: RCTEventEmitter {
 
   @objc
-  static func moduleName() -> String! {
+  override static func moduleName() -> String! {
     return "AppleLLMModule"
   }
 
   @objc
-  static func requiresMainQueueSetup() -> Bool {
+  override static func requiresMainQueueSetup() -> Bool {
     return false
+  }
+  
+  override func supportedEvents() -> [String]! {
+    return ["ToolInvocation"]
   }
 
   private var session: LanguageModelSession?
+  private var registeredTools: [String: BridgeTool] = [:]
+  private var toolHandlers: [String: (String, [String: Any]) -> Void] = [:]
+  private var toolTimeout: Int = 30000
 
   @objc
   func isFoundationModelsEnabled(
@@ -71,7 +116,8 @@ class AppleLLMModule: NSObject {
       }
     }
 
-    self.session = LanguageModelSession(tools: [], instructions: instructions)
+    let tools = Array(registeredTools.values)
+    self.session = LanguageModelSession(tools: tools, instructions: instructions)
     resolve(true)
   }
 
@@ -124,15 +170,7 @@ class AppleLLMModule: NSObject {
         childProperty = DynamicGenerationSchema.Property(
           name: key, description: description, schema: nestedSchema)
       }
-      // TODO: handle array
-      // else if type == "array", let items = field["items"] as? [String: Any] {
-      //   let itemSchema = dynamicSchema(from: [items], name: "\(key)Item")
-      //   let arraySchema = DynamicGenerationSchema(
-      //     name: key, description: description,
-      //     properties: [DynamicGenerationSchema.Property(name: "items", schema: itemSchema)])
-      //   childProperty = DynamicGenerationSchema.Property(
-      //     name: key, description: description, schema: arraySchema)
-      // }
+      // TODO: handle array?
       else {
         childProperty = schemaForType(name: key, type: type ?? "string", description: description)
       }
@@ -299,11 +337,157 @@ class AppleLLMModule: NSObject {
   }
 
   @objc
+  func registerTool(
+    _ toolDefinition: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    guard let name = toolDefinition["name"] as? String,
+          let description = toolDefinition["description"] as? String,
+          let parameters = toolDefinition["parameters"] as? [String: [String: Any]] else {
+      reject("INVALID_TOOL_DEFINITION", "Invalid tool definition structure", nil)
+      return
+    }
+    
+    let bridgeTool = BridgeTool(
+      name: name,
+      description: description,
+      parameters: parameters,
+      module: self
+    )
+    
+    registeredTools[name] = bridgeTool
+    resolve(true)
+  }
+  
+  @objc
+  func handleToolResult(
+    _ result: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    guard let id = result["id"] as? String else {
+      reject("INVALID_RESULT", "Missing tool call id", nil)
+      return
+    }
+    
+    // here we call handler and remove from pending 
+    if let handler = toolHandlers[id] {
+      handler(id, result as! [String: Any])
+      toolHandlers.removeValue(forKey: id) // remove from pending 
+    }
+    
+    resolve(true)
+  }
+  
+  @objc
+  func generateWithTools(
+    _ options: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    guard let session = session else {
+      reject("SESSION_NOT_CONFIGURED", "Call configureSession first", nil)
+      return
+    }
+    
+    guard let prompt = options["prompt"] as? String else {
+      reject("INVALID_INPUT", "Missing 'prompt' field", nil)
+      return
+    }
+    
+    let maxTokens = options["maxTokens"] as? Int ?? 1000 // default to 1000 tokens
+    let temperature = options["temperature"] as? Double ?? 0.5 // default to 0.5
+    let toolTimeout = options["toolTimeout"] as? Int ?? 30000 // default to 30 seconds
+    self.toolTimeout = toolTimeout
+
+    Task {
+      do {
+        var generationOptions = GenerationOptions(sampling: .greedy)
+        
+        generationOptions = GenerationOptions(
+            sampling: generationOptions.sampling,
+            temperature: temperature,
+            maximumResponseTokens: maxTokens
+        )
+        
+        // Generate response with tools enabled
+        let result = try await session.respond(
+          to: prompt,
+          options: generationOptions
+        )
+        
+        resolve(result.content)
+        
+      } catch {
+        reject(
+          "GENERATION_FAILED", 
+          "Failed to generate with tools: \(error.localizedDescription)", 
+          error
+        )
+      }
+    }
+  }
+  
+  func invokeTool(name: String, id: String, parameters: [String: Any]) async throws -> String {
+    return try await withCheckedThrowingContinuation { continuation in
+      // Store the continuation to resolve
+      let continuationKey = id
+      
+      // Create a handler to resolve 
+      let handler = { (resultId: String, result: [String: Any]) in
+        if resultId == id {
+          if let success = result["success"] as? Bool, success {
+            continuation.resume(returning: result["result"] as? String ?? "No result")
+          } else {
+            let error = result["error"] as? String ?? "Unknown tool execution error"
+            continuation.resume(throwing: NSError(
+              domain: "ToolExecutionError",
+              code: 1,
+              userInfo: [NSLocalizedDescriptionKey: error]
+            ))
+          }
+        }
+      }
+      
+      toolHandlers[continuationKey] = handler
+      
+      // Send tool invocation to React Native
+      DispatchQueue.main.async {
+        self.sendEvent(
+          withName: "ToolInvocation",
+          body: [
+            "name": name,
+            "id": id,
+            "parameters": parameters
+          ]
+        )
+      }
+      
+      // Set up a timeout in case the tool never returns, maybe there is a better way to do this? also possibly let the user set the timeout 
+      Task {
+        try await Task.sleep(nanoseconds: UInt64(self.toolTimeout) * 1_000_000) // Convert ms to ns
+        
+        if self.toolHandlers[continuationKey] != nil {
+          self.toolHandlers.removeValue(forKey: continuationKey)
+          continuation.resume(throwing: NSError(
+            domain: "ToolExecutionError",
+            code: 2,
+            userInfo: [NSLocalizedDescriptionKey: "Tool execution timeout"]
+          ))
+        }
+      }
+    }
+  }
+  
+  @objc
   func resetSession(
     _ resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
     session = nil
+    registeredTools.removeAll()
+    toolHandlers.removeAll()
     resolve(true)
   }
 }
