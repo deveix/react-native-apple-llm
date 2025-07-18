@@ -329,9 +329,10 @@ class AppleLLMModule: RCTEventEmitter {
         print("result: \((result.content))")
         resolve(result.content)
 
-      } catch {
+      } catch let error{
+        let errorMessage = handleGeneratedError(error as! LanguageModelSession.GenerationError)
         reject(
-          "GENERATION_FAILED", "Failed to generate output: \(error.localizedDescription)", error)
+          "GENERATION_FAILED", errorMessage, error)
       }
     }
   }
@@ -419,10 +420,11 @@ class AppleLLMModule: RCTEventEmitter {
         
         resolve(result.content)
         
-      } catch {
+      } catch let error {
+        let errorMessage = handleGeneratedError(error as! LanguageModelSession.GenerationError)
         reject(
           "GENERATION_FAILED", 
-          "Failed to generate with tools: \(error.localizedDescription)", 
+          errorMessage, 
           error
         )
       }
@@ -490,4 +492,36 @@ class AppleLLMModule: RCTEventEmitter {
     toolHandlers.removeAll()
     resolve(true)
   }
+}
+
+// refernce: https://developer.apple.com/forums/thread/792076?answerId=848076022#848076022
+private func handleGeneratedError(_ error: LanguageModelSession.GenerationError) -> String {
+    switch error {
+    case .exceededContextWindowSize(let context):
+        return presentGeneratedError(error, context: context)
+    case .assetsUnavailable(let context):
+        return presentGeneratedError(error, context: context)
+    case .guardrailViolation(let context):
+        return presentGeneratedError(error, context: context)
+    case .unsupportedGuide(let context):
+        return presentGeneratedError(error, context: context)
+    case .unsupportedLanguageOrLocale(let context):
+        return presentGeneratedError(error, context: context)
+    case .decodingFailure(let context):
+        return presentGeneratedError(error, context: context)
+    case .rateLimited(let context):
+        return presentGeneratedError(error, context: context)
+    default:
+        return "Failed to respond: \(error.localizedDescription)"
+    }
+}
+
+private func presentGeneratedError(_ error: LanguageModelSession.GenerationError,
+                                   context: LanguageModelSession.GenerationError.Context) -> String {
+    return """
+        Failed to respond: \(error.localizedDescription).
+        Failure reason: \(String(describing: error.failureReason)).
+        Recovery suggestion: \(String(describing: error.recoverySuggestion)).
+        Context: \(context)
+        """
 }
