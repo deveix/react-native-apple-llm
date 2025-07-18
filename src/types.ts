@@ -42,7 +42,6 @@ export interface LLMGenerateTextOptions {
 
 export interface LLMGenerateWithToolsOptions {
   prompt: string;
-  maxToolCalls?: number;
   maxTokens?: number;
   temperature?: number;
   toolTimeout?: number; // in milliseconds

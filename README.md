@@ -1,6 +1,6 @@
 # React Native Apple LLM Plugin
 
-A React Native plugin to access Apple Intelligence Foundation Models using native on-device LLM APIs. This module lets you check model availability, create sessions, generate structured outputs (JSON), and text using Apple's LLMs, all from React Native.
+A React Native plugin to access Apple Intelligence Foundation Model framework using native on-device LLM APIs. This module lets you check model availability, create sessions, generate structured outputs (JSON), and generate with tools using Apple's LLMs, all from React Native. **Note that this is a beta feature, so bugs and compatibility issues may rise. Issues are welcome**.
 
 ## Features
 
@@ -10,12 +10,13 @@ A React Native plugin to access Apple Intelligence Foundation Models using nativ
 - **Text generation** - Create human-like text responses
 - **Session management** - Configure and manage LLM sessions
 - **TypeScript support** - Full type safety and IntelliSense
+- **Custom tools** - User defined tool-box available for LLM use 
 
 ## Requirements
 
 - iOS 26.0
 - Xcode 26
-- Apple Intelligence enabled device (iPhone 15 Pro, iPhone 16 series, M1+ iPad/Mac)
+- Apple Intelligence enabled device (iPhone 15 Pro, iPhone 16 series, M1+ iPad/Mac) or simulator (MacOS 26 required)
 
 <div align="center">
 
@@ -67,8 +68,7 @@ This plugin is perfect for building:
 ```tsx
 import {
   isFoundationModelsEnabled,
-  configureSession,
-  generateText,
+  AppleLLMSession,
 } from "react-native-apple-llm";
 
 // Check if Apple Intelligence is available
@@ -79,15 +79,17 @@ const checkAvailability = async () => {
 
 // Generate simple text
 const generateSimpleText = async () => {
-  await configureSession({
+  const session = new AppleLLMSession();
+  await session.configure({
     instructions: "You are a helpful assistant.",
   });
 
-  const response = await generateText({
+  const response = await session.generateText({
     prompt: "Explain React Native in one sentence",
   });
 
   console.log(response);
+  session.dispose();
 };
 ```
 ## Tool Usage 
@@ -121,7 +123,7 @@ const weatherTool: ToolDefinition = {
   handler: weatherHandler
 };
 
-// Use with session
+// Use with session, don't forget to check availability first like above
 const session = new AppleLLMSession();
 await session.configure({
   instructions: "You are a helpful assistant.",
@@ -129,7 +131,7 @@ await session.configure({
 
 const response = await session.generateWithTools({
   prompt: "What is the weather in Monrovia, California?",
-}); // note that the model censors the prompts sometimes
+}); 
 
 console.log(response);
 session.dispose();
@@ -192,7 +194,6 @@ Generates text with tool calling capabilities.
 ```tsx
 const response = await session.generateWithTools({
   prompt: "What's the weather like?",
-  maxToolCalls: 3,
 });
 ```
 
@@ -351,90 +352,27 @@ interface LLMGenerateOptions {
 interface LLMGenerateTextOptions {
   prompt: string;
 }
+
+interface LLMGenerateWithToolsOptions {
+  prompt: string;
+  maxTokens?: number;
+  temperature?: number;
+  toolTimeout?: number; // in milliseconds
+}
 ```
-
-## Advanced Examples
-
-### Building a Smart Recipe Parser
+#### Tool Definition
 
 ```tsx
-const parseRecipe = async (recipeText: string) => {
-  await configureSession({
-    instructions:
-      "Extract recipe information accurately. Focus on ingredients and steps.",
-  });
-
-  const recipe = await generateStructuredOutput({
-    structure: {
-      title: { type: "string", description: "Recipe name" },
-      servings: { type: "number", description: "Number of servings" },
-      ingredients: {
-        type: "object",
-        properties: {
-          list: { type: "string", description: "Comma-separated ingredients" },
-        },
-      },
-      instructions: {
-        type: "object",
-        properties: {
-          steps: {
-            type: "string",
-            description: "Step-by-step cooking instructions",
-          },
-        },
-      },
-      cookingTime: { type: "string", description: "Total cooking time" },
-    },
-    prompt: `Extract recipe details from: ${recipeText}`,
-  });
-
-  return recipe;
-};
+interface ToolSchema {
+  name: string;
+  description: string;
+  parameters: { [key: string]: ToolParameter };
+}
+interface ToolDefinition {
+  handler: (parameters: any) => Promise<any>; // parameter should always look like a json 
+  schema: ToolSchema;
+}
 ```
-
-### Creating an AI Writing Assistant
-
-```tsx
-const improveWriting = async (text: string, style: string) => {
-  await configureSession({
-    instructions: `You are a professional writing coach. Improve text while maintaining the author's voice.`,
-  });
-
-  const improved = await generateText({
-    prompt: `Improve this text in a ${style} style: "${text}"`,
-  });
-
-  return improved;
-};
-```
-
-### Building a Data Extraction Tool
-
-```tsx
-const extractContactInfo = async (businessCard: string) => {
-  const contactInfo = await generateStructuredOutput({
-    structure: {
-      name: { type: "string", description: "Full name" },
-      company: { type: "string", description: "Company name" },
-      email: { type: "string", description: "Email address" },
-      phone: { type: "string", description: "Phone number" },
-      address: { type: "string", description: "Business address" },
-      website: { type: "string", description: "Website URL" },
-    },
-    prompt: `Extract contact information from this business card: ${businessCard}`,
-  });
-
-  return contactInfo;
-};
-```
-
-## Privacy & Security
-
-- **100% On-device processing** - No data leaves your device
-- **No internet required** - Works completely offline
-- **Apple's privacy standards** - Built on Apple's privacy-first architecture
-- **No tracking or analytics** - This plugin doesn't collect any user data
-- **Secure by design** - Leverages iOS security and sandboxing
 
 ## Troubleshooting
 
@@ -453,7 +391,7 @@ if (status === "appleIntelligenceNotEnabled") {
 
 ```tsx
 if (status === "modelNotReady") {
-  // Apple Intelligence is downloading. Ask user to wait and try again.
+  // Apple Intelligence is downloading. Ask user to wait and try again. Or double check the device is properly configured
 }
 ```
 
@@ -476,8 +414,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 3. Build the project: `yarn build`
 4. Link the library: `npm link`
 5. Get the example project found [here](https://github.com/deveix/apple-llm-test).
-6. Install the library `npm add react-native-apple-llm`   
-7. Install the Pod `cd ios && pod install`
+6. Add the library `npm link react-native-apple-llm`   
 
 ## License
 
