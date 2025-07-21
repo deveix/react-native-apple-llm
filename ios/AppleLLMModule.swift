@@ -495,6 +495,7 @@ class AppleLLMModule: RCTEventEmitter {
 }
 
 // refernce: https://developer.apple.com/forums/thread/792076?answerId=848076022#848076022
+@available(iOS 26.0, *)
 private func handleGeneratedError(_ error: LanguageModelSession.GenerationError) -> String {
     switch error {
     case .exceededContextWindowSize(let context):
@@ -516,6 +517,7 @@ private func handleGeneratedError(_ error: LanguageModelSession.GenerationError)
     }
 }
 
+@available(iOS 26.0, *)
 private func presentGeneratedError(_ error: LanguageModelSession.GenerationError,
                                    context: LanguageModelSession.GenerationError.Context) -> String {
     return """
