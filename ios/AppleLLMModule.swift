@@ -2,7 +2,7 @@
 //  react-native-apple-llm
 //
 //  Created by Ahmed Kasem on 16/06/25.
-//
+
 
 import Foundation
 import FoundationModels
@@ -32,7 +32,7 @@ class BridgeTool: Tool, @unchecked Sendable {
         self.schema = try! GenerationSchema(root: rootSchema, dependencies: [])
     }
 
-    func call(arguments: GeneratedContent) async throws -> ToolOutput {
+    func call(arguments: GeneratedContent) async throws -> GeneratedContent {
         guard let module = module else {
             throw NSError(domain: "BridgeToolError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Module reference lost"])
         }
@@ -40,10 +40,8 @@ class BridgeTool: Tool, @unchecked Sendable {
         let invocationArgs = try module.flattenGeneratedContent(arguments) as? [String: Any] ?? [:]
         
         let id = UUID().uuidString
-        return ToolOutput(try await module.invokeTool(name: name, id: id, parameters: invocationArgs))
+        return GeneratedContent(try await module.invokeTool(name: name, id: id, parameters: invocationArgs))
     }
-  
-
 }
 
 @objc(AppleLLMModule)
@@ -238,22 +236,13 @@ class AppleLLMModule: RCTEventEmitter {
       return boolVal
     }
 
-    // If it's an object with named properties
-    if let props = try? content.properties() {
-      var result: [String: Any] = [:]
-      for (key, val) in props {
-        result[key] = try flattenGeneratedContent(val)
-      }
-      return result
+    if let jsonString = content.jsonString.data(using:  .utf8 ){
+        if let dict = try?JSONSerialization.jsonObject(with: jsonString) as? [String : Any] {
+            return dict
+        }
     }
-
-    // If it's an array
-    if let elements = try? content.elements() {
-      return try elements.map { try flattenGeneratedContent($0) }
-    }
-
-    // Fallback
-    return "\(content)"
+    
+    return "failed to parse content"
   }
 
   @objc
