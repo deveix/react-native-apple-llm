@@ -236,22 +236,13 @@ class AppleLLMModule: RCTEventEmitter {
       return boolVal
     }
 
-    // If it's an object with named properties
-    if let props = try? content.properties() {
-      var result: [String: Any] = [:]
-      for (key, val) in props {
-        result[key] = try flattenGeneratedContent(val)
-      }
-      return result
+    if let jsonString = content.jsonString.data(using:  .utf8 ){
+        if let dict = try?JSONSerialization.jsonObject(with: jsonString) as? [String : Any] {
+            return dict
+        }
     }
-
-    // If it's an array
-    if let elements = try? content.elements() {
-      return try elements.map { try flattenGeneratedContent($0) }
-    }
-
-    // Fallback
-    return "\(content)"
+    
+    return "failed to parse content"
   }
 
   @objc
