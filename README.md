@@ -413,7 +413,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 2. Install dependencies: `yarn install`
 3. Build the project: `yarn build`
 4. Link the library: `npm link`
-5. Get the example project found [here](https://github.com/deveix/apple-llm-test).
+5. Get the example project found [here](https://github.com/ecoArcGaming/foundation-model-react-native-test) (or your own project).
 6. Add the library `npm link react-native-apple-llm`   
 
 ## License

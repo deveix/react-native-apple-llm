@@ -2,7 +2,7 @@
 //  react-native-apple-llm
 //
 //  Created by Ahmed Kasem on 16/06/25.
-//
+
 
 import Foundation
 import FoundationModels
@@ -32,7 +32,7 @@ class BridgeTool: Tool, @unchecked Sendable {
         self.schema = try! GenerationSchema(root: rootSchema, dependencies: [])
     }
 
-    func call(arguments: GeneratedContent) async throws -> ToolOutput {
+    func call(arguments: GeneratedContent) async throws -> GeneratedContent {
         guard let module = module else {
             throw NSError(domain: "BridgeToolError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Module reference lost"])
         }
@@ -40,10 +40,8 @@ class BridgeTool: Tool, @unchecked Sendable {
         let invocationArgs = try module.flattenGeneratedContent(arguments) as? [String: Any] ?? [:]
         
         let id = UUID().uuidString
-        return ToolOutput(try await module.invokeTool(name: name, id: id, parameters: invocationArgs))
+        return GeneratedContent(try await module.invokeTool(name: name, id: id, parameters: invocationArgs))
     }
-  
-
 }
 
 @objc(AppleLLMModule)
