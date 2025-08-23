@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
   s.version                 = package['version']
   s.summary                 = package["description"]
   s.homepage                = "https://github.com/deveix/react-native-apple-llm"
-  s.license                 = { :type => package["license"], :file => "LICENSE" }
+  s.license                 = { :type => package["license"], :file => "LICENSE.md" }
   s.authors                 = { package["author"]["name"] => package["author"]["email"] }
 
   s.ios.deployment_target   = '13.0'
