@@ -137,10 +137,71 @@ console.log(response);
 session.dispose();
 ```
 
+## Streaming
+
+The library supports streaming text generation in two ways, allowing you to display results as they're being generated:
+
+### Method 1: Using `generateTextStream()` with async iteration
+
+```tsx
+import { AppleLLMSession } from 'react-native-apple-llm';
+
+const streamExample = async () => {
+  const session = new AppleLLMSession();
+  await session.configure({
+    instructions: 'You are an amazing storyteller.',
+  });
+
+  // Use generateTextStream for streaming responses
+  const result = await session.generateTextStream({
+    prompt: 'Tell me a story (in less than 100 words).',
+  });
+
+  // Iterate through the stream chunks
+  for await (const chunk of result) {
+    console.log(chunk); // Each chunk contains the full response text so far
+    // Update your UI with the chunk
+  }
+
+  session.dispose();
+};
+```
+
+### Method 2: Using EventEmitter with `generateText()` or `generateWithTools()`
+
+Both `generateText()` and `generateWithTools()` accept an optional `stream` parameter that receives chunks via events:
+
+```tsx
+import { AppleLLMSession } from 'react-native-apple-llm';
+import { EventEmitter } from 'events';
+
+const streamWithEventEmitter = async () => {
+  const session = new AppleLLMSession();
+  await session.configure({
+    instructions: 'You are a helpful assistant.',
+  });
+
+  // Create an EventEmitter for streaming
+  const streamEmitter = new EventEmitter();
+
+  // Listen for data events
+  streamEmitter.on('data', (chunk: string) => {
+    console.log('Received chunk:', chunk);
+    // Update your UI with the chunk
+  });
+
+  // Pass the emitter to generateText or generateWithTools
+  await session.generateText({
+    prompt: 'Explain React Native in detail.',
+    stream: streamEmitter,
+  });
+
+  session.dispose();
+};
+```
 
 ## TODO
 
-- [ ] Streaming support using `Event Emitters`
 - [ ] Schema as zod
 - [ ] Function calling capabilities
 
