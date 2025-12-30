@@ -3,11 +3,9 @@
 //
 //  Created by Ahmed Kasem on 16/06/25.
 
-
 import Foundation
 import FoundationModels
 import React
-
 
 @available(iOS 26, *)
 class BridgeTool: Tool, @unchecked Sendable {
@@ -22,12 +20,12 @@ class BridgeTool: Tool, @unchecked Sendable {
     var parameters: GenerationSchema {
         return schema
     }
-  
+
     init(name: String, description: String, parameters: [String: [String: Any]], module: AppleLLMModule) {
         self.name = name
         self.description = description
         self.module = module
-        
+
         let rootSchema = module.dynamicSchema(from: parameters, name: name)
         self.schema = try! GenerationSchema(root: rootSchema, dependencies: [])
     }
@@ -36,9 +34,9 @@ class BridgeTool: Tool, @unchecked Sendable {
         guard let module = module else {
             throw NSError(domain: "BridgeToolError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Module reference lost"])
         }
-    
+
         let invocationArgs = try module.flattenGeneratedContent(arguments) as? [String: Any] ?? [:]
-        
+
         let id = UUID().uuidString
         return GeneratedContent(try await module.invokeTool(name: name, id: id, parameters: invocationArgs))
     }
@@ -49,16 +47,14 @@ class BridgeTool: Tool, @unchecked Sendable {
 @objcMembers
 class AppleLLMModule: RCTEventEmitter {
 
-  @objc
   override static func moduleName() -> String! {
     return "AppleLLMModule"
   }
 
-  @objc
   override static func requiresMainQueueSetup() -> Bool {
     return false
   }
-  
+
   override func supportedEvents() -> [String]! {
     return ["ToolInvocation", "TextGenerationChunk"]
   }
@@ -68,7 +64,6 @@ class AppleLLMModule: RCTEventEmitter {
   private var toolHandlers: [String: (String, [String: Any]) -> Void] = [:]
   private var toolTimeout: Int = 30000
 
-  @objc
   func isFoundationModelsEnabled(
     _ resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
@@ -95,7 +90,6 @@ class AppleLLMModule: RCTEventEmitter {
     #endif
   }
 
-  @objc
   func configureSession(
     _ config: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
@@ -180,8 +174,7 @@ class AppleLLMModule: RCTEventEmitter {
   }
 
   private func schemaForType(name: String, type: String, description: String? = nil)
-    -> DynamicGenerationSchema.Property
-  {
+    -> DynamicGenerationSchema.Property {
     return schemaForPrimitiveType(name: name, type: type, description: description)
   }
 
@@ -236,16 +229,15 @@ class AppleLLMModule: RCTEventEmitter {
       return boolVal
     }
 
-    if let jsonString = content.jsonString.data(using:  .utf8 ){
-        if let dict = try?JSONSerialization.jsonObject(with: jsonString) as? [String : Any] {
+    if let jsonString = content.jsonString.data(using: .utf8 ) {
+        if let dict = try?JSONSerialization.jsonObject(with: jsonString) as? [String: Any] {
             return dict
         }
     }
-    
+
     return "failed to parse content"
   }
 
-  @objc
   func generateStructuredOutput(
     _ options: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
@@ -293,7 +285,6 @@ class AppleLLMModule: RCTEventEmitter {
     }
   }
 
-  @objc
   func generateText(
     _ options: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
@@ -336,7 +327,7 @@ class AppleLLMModule: RCTEventEmitter {
         print("result: \(fullContent)")
         resolve(fullContent)
 
-      } catch let error{
+      } catch let error {
         let errorMessage = handleGeneratedError(error as! LanguageModelSession.GenerationError)
         reject(
           "GENERATION_FAILED", errorMessage, error)
@@ -344,7 +335,6 @@ class AppleLLMModule: RCTEventEmitter {
     }
   }
 
-  @objc
   func registerTool(
     _ toolDefinition: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
@@ -356,19 +346,18 @@ class AppleLLMModule: RCTEventEmitter {
       reject("INVALID_TOOL_DEFINITION", "Invalid tool definition structure", nil)
       return
     }
-    
+
     let bridgeTool = BridgeTool(
       name: name,
       description: description,
       parameters: parameters,
       module: self
     )
-    
+
     registeredTools[name] = bridgeTool
     resolve(true)
   }
-  
-  @objc
+
   func handleToolResult(
     _ result: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
@@ -378,17 +367,16 @@ class AppleLLMModule: RCTEventEmitter {
       reject("INVALID_RESULT", "Missing tool call id", nil)
       return
     }
-    
+
     // here we call handler and remove from pending 
     if let handler = toolHandlers[id] {
       handler(id, result as! [String: Any])
       toolHandlers.removeValue(forKey: id) // remove from pending 
     }
-    
+
     resolve(true)
   }
-  
-  @objc
+
   func generateWithTools(
     _ options: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
@@ -453,12 +441,12 @@ class AppleLLMModule: RCTEventEmitter {
       }
     }
   }
-  
+
   func invokeTool(name: String, id: String, parameters: [String: Any]) async throws -> String {
     return try await withCheckedThrowingContinuation { continuation in
       // Store the continuation to resolve
       let continuationKey = id
-      
+
       // Create a handler to resolve 
       let handler = { (resultId: String, result: [String: Any]) in
         if resultId == id {
@@ -474,9 +462,9 @@ class AppleLLMModule: RCTEventEmitter {
           }
         }
       }
-      
+
       toolHandlers[continuationKey] = handler
-      
+
       // Send tool invocation to React Native
       DispatchQueue.main.async {
         self.sendEvent(
@@ -488,11 +476,11 @@ class AppleLLMModule: RCTEventEmitter {
           ]
         )
       }
-      
+
       // Set up a timeout in case the tool never returns, maybe there is a better way to do this? also possibly let the user set the timeout 
       Task {
         try await Task.sleep(nanoseconds: UInt64(self.toolTimeout) * 1_000_000) // Convert ms to ns
-        
+
         if self.toolHandlers[continuationKey] != nil {
           self.toolHandlers.removeValue(forKey: continuationKey)
           continuation.resume(throwing: NSError(
@@ -504,8 +492,7 @@ class AppleLLMModule: RCTEventEmitter {
       }
     }
   }
-  
-  @objc
+
   func resetSession(
     _ resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock

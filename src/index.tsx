@@ -1,12 +1,5 @@
-import { NativeModules, NativeEventEmitter } from 'react-native';
+import { NativeModules, NativeEventEmitter } from "react-native";
 import { EventEmitter } from 'events';
-
-const { AppleLLMModule } = NativeModules;
-
-if (!AppleLLMModule) {
-  console.log('AppleLLM native module is not available');
-  throw new Error('AppleLLM native module is not available');
-}
 
 import {
   FoundationModelsAvailability,
@@ -16,7 +9,14 @@ import {
   LLMGenerateTextStreamOptions,
   LLMGenerateWithToolsOptions,
   ToolDefinition,
-} from './types';
+} from "./types";
+
+const { AppleLLMModule } = NativeModules;
+
+if (!AppleLLMModule) {
+  console.log("AppleLLM native module is not available");
+  throw new Error("AppleLLM native module is not available");
+}
 
 /**
  * Check if Foundation Models (Apple Intelligence) are enabled and available.
@@ -45,18 +45,16 @@ export class AppleLLMSession {
    */
   async configure(
     options: LLMConfigOptions,
-    tools?: ToolDefinition[],
+    tools?: ToolDefinition[]
   ): Promise<boolean> {
     // Clear existing tools
     this.toolHandlers.clear();
 
     // Register new tools
     if (tools) {
-      await Promise.all(
-        tools.map(async tool => {
-          await this.registerTool(tool);
-        }),
-      );
+      await Promise.all(tools.map(async (tool) => {
+        await this.registerTool(tool);
+      }));
     }
 
     const success = await AppleLLMModule.configureSession(options);
@@ -76,7 +74,7 @@ export class AppleLLMSession {
         // Chunks are emitted via events for the stream to consume
         const stream = options.stream;
         if (stream) stream.emit('data', _event.chunk);
-      },
+      }
     );
 
     try {
@@ -116,7 +114,7 @@ export class AppleLLMSession {
           (_event: { chunk: string }) => {
             const stream = options.stream;
             if (stream) stream.emit('data', _event.chunk);
-          },
+          }
         )
       : null;
 
@@ -149,7 +147,7 @@ export class AppleLLMSession {
             error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
-      },
+      }
     );
 
     try {
@@ -224,7 +222,7 @@ export class AppleLLMSession {
           'TextGenerationChunk',
           (event: { chunk: string }) => {
             streamEmitter.emit('data', event.chunk);
-          },
+          }
         );
 
         try {
@@ -245,9 +243,7 @@ export class AppleLLMSession {
 
   private ensureConfigured(): void {
     if (!this.isConfigured) {
-      throw new Error(
-        'Session must be configured before use. Call configure() first.',
-      );
+      throw new Error('Session must be configured before use. Call configure() first.');
     }
   }
 }
@@ -270,7 +266,7 @@ const getDefaultSession = (): AppleLLMSession => {
  */
 export const configureSession = async (
   options: LLMConfigOptions,
-  tools?: ToolDefinition[],
+  tools?: ToolDefinition[]
 ): Promise<boolean> => {
   return getDefaultSession().configure(options, tools);
 };
@@ -279,7 +275,7 @@ export const configureSession = async (
  * @deprecated Use AppleLLMSession class instead
  */
 export const generateText = async (
-  options: LLMGenerateTextOptions,
+  options: LLMGenerateTextOptions
 ): Promise<any> => {
   return getDefaultSession().generateText(options);
 };
@@ -288,7 +284,7 @@ export const generateText = async (
  * @deprecated Use AppleLLMSession class instead
  */
 export const generateStructuredOutput = async (
-  options: LLMGenerateOptions,
+  options: LLMGenerateOptions
 ): Promise<any> => {
   return getDefaultSession().generateStructuredOutput(options);
 };
@@ -297,7 +293,7 @@ export const generateStructuredOutput = async (
  * @deprecated Use AppleLLMSession class instead
  */
 export const generateWithTools = async (
-  options: LLMGenerateWithToolsOptions,
+  options: LLMGenerateWithToolsOptions
 ): Promise<any> => {
   return getDefaultSession().generateWithTools(options);
 };
@@ -309,4 +305,4 @@ export const resetSession = async (): Promise<boolean> => {
   return getDefaultSession().reset();
 };
 
-export * from './types';
+export * from "./types";
