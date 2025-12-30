@@ -258,6 +258,16 @@ const response = await session.generateWithTools({
 });
 ```
 
+#### `generateTextStream(options: LLMGenerateTextStreamOptions): ReadableStream<string>`
+
+Generate text as a stream.
+
+```tsx
+const stream = await session.generateTextStream({
+  prompt: 'Tell me a story',
+});
+```
+
 #### `reset(): Promise<boolean>`
 
 Resets the session state.
@@ -412,6 +422,11 @@ interface LLMGenerateOptions {
 
 interface LLMGenerateTextOptions {
   prompt: string;
+  stream?: EventEmitter;
+}
+
+interface LLMGenerateTextStreamOptions {
+  prompt: string;
 }
 
 interface LLMGenerateWithToolsOptions {
@@ -419,6 +434,7 @@ interface LLMGenerateWithToolsOptions {
   maxTokens?: number;
   temperature?: number;
   toolTimeout?: number; // in milliseconds
+  stream?: EventEmitter;
 }
 ```
 #### Tool Definition
