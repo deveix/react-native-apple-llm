@@ -1,4 +1,4 @@
-import { FoundationModelsAvailability, LLMConfigOptions, LLMGenerateOptions, LLMGenerateTextOptions, LLMGenerateWithToolsOptions, ToolDefinition } from "./types";
+import { FoundationModelsAvailability, LLMConfigOptions, LLMGenerateOptions, LLMGenerateTextOptions, LLMGenerateTextStreamOptions, LLMGenerateWithToolsOptions, ToolDefinition } from './types';
 /**
  * Check if Foundation Models (Apple Intelligence) are enabled and available.
  * Returns a string status: 'available', 'appleIntelligenceNotEnabled', 'modelNotReady', 'unavailable'.
@@ -20,7 +20,7 @@ export declare class AppleLLMSession {
     /**
      * Generate text using text parameter
      */
-    generateText(options: LLMGenerateTextOptions): Promise<any>;
+    generateText(options: LLMGenerateTextOptions): Promise<string>;
     /**
      * Generate structured output using a JSON shape as the schema
      */
@@ -41,6 +41,10 @@ export declare class AppleLLMSession {
      * Dispose of the session and clean up resources
      */
     dispose(): void;
+    /**
+     * Generate text as a ReadableStream
+     */
+    generateTextStream(options: LLMGenerateTextStreamOptions): ReadableStream<string>;
     private ensureConfigured;
 }
 /**
@@ -63,5 +67,5 @@ export declare const generateWithTools: (options: LLMGenerateWithToolsOptions) =
  * @deprecated Use AppleLLMSession class instead
  */
 export declare const resetSession: () => Promise<boolean>;
-export * from "./types";
+export * from './types';
 //# sourceMappingURL=index.d.ts.map
