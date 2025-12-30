@@ -1,5 +1,7 @@
+import { EventEmitter } from 'events';
+
 export type StructureProperty = {
-  type?: "string" | "integer" | "number" | "boolean" | "object";
+  type?: 'string' | 'integer' | 'number' | 'boolean' | 'object';
   description?: string;
   enum?: string[];
   properties?: StructureSchema;
@@ -10,10 +12,10 @@ export type StructureSchema = {
 };
 
 export interface ToolParameter {
-  type: "string" | "integer" | "number" | "boolean" | "object";
+  type: 'string' | 'integer' | 'number' | 'boolean' | 'object';
   description: string;
   name: string;
-  enum?: string[]; 
+  enum?: string[];
 }
 // this describes the tool
 export interface ToolSchema {
@@ -21,9 +23,9 @@ export interface ToolSchema {
   description: string;
   parameters: { [key: string]: ToolParameter };
 }
-// tool description + the actual function 
+// tool description + the actual function
 export interface ToolDefinition {
-  handler: (parameters: any) => Promise<any>; // parameter should always look like a json 
+  handler: (parameters: any) => Promise<any>; // parameter should always look like a json
   schema: ToolSchema;
 }
 
@@ -38,6 +40,11 @@ export interface LLMGenerateOptions {
 
 export interface LLMGenerateTextOptions {
   prompt: string;
+  stream?: EventEmitter;
+}
+
+export interface LLMGenerateTextStreamOptions {
+  prompt: string;
 }
 
 export interface LLMGenerateWithToolsOptions {
@@ -45,6 +52,7 @@ export interface LLMGenerateWithToolsOptions {
   maxTokens?: number;
   temperature?: number;
   toolTimeout?: number; // in milliseconds
+  stream?: EventEmitter;
 }
 
 export interface ToolCall {
@@ -53,9 +61,8 @@ export interface ToolCall {
   id: string;
 }
 
-
 export type FoundationModelsAvailability =
-  | "available"
-  | "appleIntelligenceNotEnabled"
-  | "modelNotReady"
-  | "unavailable";
+  | 'available'
+  | 'appleIntelligenceNotEnabled'
+  | 'modelNotReady'
+  | 'unavailable';

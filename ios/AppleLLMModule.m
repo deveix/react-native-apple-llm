@@ -5,9 +5,9 @@
 //
 
 #import <React/RCTBridgeModule.h>
+#import <React/RCTEventEmitter.h>
 
-
-@interface RCT_EXTERN_MODULE (AppleLLMModule, NSObject)
+@interface RCT_EXTERN_MODULE (AppleLLMModule, RCTEventEmitter)
 
 // Generate structured model from LLM based on input options
 RCT_EXTERN_METHOD(generateStructuredOutput : (NSDictionary *)options resolve : (

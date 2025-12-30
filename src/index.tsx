@@ -1,10 +1,11 @@
-import { NativeModules, NativeEventEmitter } from "react-native";
+import { NativeModules, NativeEventEmitter } from 'react-native';
+import { EventEmitter } from 'events';
 
 const { AppleLLMModule } = NativeModules;
 
 if (!AppleLLMModule) {
-  console.log("AppleLLM native module is not available");
-  throw new Error("AppleLLM native module is not available");
+  console.log('AppleLLM native module is not available');
+  throw new Error('AppleLLM native module is not available');
 }
 
 import {
@@ -12,9 +13,10 @@ import {
   LLMConfigOptions,
   LLMGenerateOptions,
   LLMGenerateTextOptions,
+  LLMGenerateTextStreamOptions,
   LLMGenerateWithToolsOptions,
   ToolDefinition,
-} from "./types";
+} from './types';
 
 /**
  * Check if Foundation Models (Apple Intelligence) are enabled and available.
@@ -43,16 +45,18 @@ export class AppleLLMSession {
    */
   async configure(
     options: LLMConfigOptions,
-    tools?: ToolDefinition[]
+    tools?: ToolDefinition[],
   ): Promise<boolean> {
     // Clear existing tools
     this.toolHandlers.clear();
-    
+
     // Register new tools
     if (tools) {
-      await Promise.all(tools.map(async (tool) => {
-        await this.registerTool(tool);
-      }));
+      await Promise.all(
+        tools.map(async tool => {
+          await this.registerTool(tool);
+        }),
+      );
     }
 
     const success = await AppleLLMModule.configureSession(options);
@@ -63,9 +67,27 @@ export class AppleLLMSession {
   /**
    * Generate text using text parameter
    */
-  async generateText(options: LLMGenerateTextOptions): Promise<any> {
+  async generateText(options: LLMGenerateTextOptions): Promise<string> {
     this.ensureConfigured();
-    return AppleLLMModule.generateText(options);
+
+    const listener = this.eventEmitter.addListener(
+      'TextGenerationChunk',
+      (_event: { chunk: string }) => {
+        // Chunks are emitted via events for the stream to consume
+        const stream = options.stream;
+        if (stream) stream.emit('data', _event.chunk);
+      },
+    );
+
+    try {
+      const result = await AppleLLMModule.generateText({
+        prompt: options.prompt,
+        stream: options.stream,
+      });
+      return result;
+    } finally {
+      listener.remove();
+    }
   }
 
   /**
@@ -81,11 +103,22 @@ export class AppleLLMSession {
    */
   async generateWithTools(options: LLMGenerateWithToolsOptions): Promise<any> {
     this.ensureConfigured();
-    
+
     // Clean up any existing listener
     if (this.activeToolListener) {
       this.activeToolListener.remove();
     }
+
+    // Set up streaming listener if stream is provided
+    const streamListener = options.stream
+      ? this.eventEmitter.addListener(
+          'TextGenerationChunk',
+          (_event: { chunk: string }) => {
+            const stream = options.stream;
+            if (stream) stream.emit('data', _event.chunk);
+          },
+        )
+      : null;
 
     // Set up tool call listener
     this.activeToolListener = this.eventEmitter.addListener(
@@ -101,9 +134,9 @@ export class AppleLLMSession {
             });
             return;
           }
-          
+
           const result = await handler(event.parameters);
-          
+
           await AppleLLMModule.handleToolResult({
             id: event.id,
             success: true,
@@ -116,14 +149,17 @@ export class AppleLLMSession {
             error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
-      }
+      },
     );
 
     try {
       const result = await AppleLLMModule.generateWithTools(options);
       return result;
     } finally {
-      // Clean up listener
+      // Clean up listeners
+      if (streamListener) {
+        streamListener.remove();
+      }
       if (this.activeToolListener) {
         this.activeToolListener.remove();
         this.activeToolListener = undefined;
@@ -137,7 +173,7 @@ export class AppleLLMSession {
   private async registerTool(toolDefinition: ToolDefinition): Promise<boolean> {
     // Map the name to the handler
     this.toolHandlers.set(toolDefinition.schema.name, toolDefinition.handler);
-    
+
     // Register the tool definition with the native module
     return AppleLLMModule.registerTool(toolDefinition.schema);
   }
@@ -148,7 +184,7 @@ export class AppleLLMSession {
   async reset(): Promise<boolean> {
     this.toolHandlers.clear();
     this.isConfigured = false;
-    
+
     // Clean up any active listeners
     if (this.activeToolListener) {
       this.activeToolListener.remove();
@@ -170,9 +206,48 @@ export class AppleLLMSession {
     this.isConfigured = false;
   }
 
+  /**
+   * Generate text as a ReadableStream
+   */
+  generateTextStream(options: LLMGenerateTextStreamOptions): ReadableStream<string> {
+    this.ensureConfigured();
+
+    return new ReadableStream<string>({
+      start: async (controller) => {
+        const streamEmitter = new EventEmitter();
+
+        streamEmitter.on('data', (chunk: string) => {
+          controller.enqueue(chunk);
+        });
+
+        const listener = this.eventEmitter.addListener(
+          'TextGenerationChunk',
+          (event: { chunk: string }) => {
+            streamEmitter.emit('data', event.chunk);
+          },
+        );
+
+        try {
+          await AppleLLMModule.generateText({
+            prompt: options.prompt,
+            stream: streamEmitter,
+          });
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        } finally {
+          listener.remove();
+          streamEmitter.removeAllListeners();
+        }
+      },
+    });
+  }
+
   private ensureConfigured(): void {
     if (!this.isConfigured) {
-      throw new Error('Session must be configured before use. Call configure() first.');
+      throw new Error(
+        'Session must be configured before use. Call configure() first.',
+      );
     }
   }
 }
@@ -195,7 +270,7 @@ const getDefaultSession = (): AppleLLMSession => {
  */
 export const configureSession = async (
   options: LLMConfigOptions,
-  tools?: ToolDefinition[]
+  tools?: ToolDefinition[],
 ): Promise<boolean> => {
   return getDefaultSession().configure(options, tools);
 };
@@ -204,7 +279,7 @@ export const configureSession = async (
  * @deprecated Use AppleLLMSession class instead
  */
 export const generateText = async (
-  options: LLMGenerateTextOptions
+  options: LLMGenerateTextOptions,
 ): Promise<any> => {
   return getDefaultSession().generateText(options);
 };
@@ -213,7 +288,7 @@ export const generateText = async (
  * @deprecated Use AppleLLMSession class instead
  */
 export const generateStructuredOutput = async (
-  options: LLMGenerateOptions
+  options: LLMGenerateOptions,
 ): Promise<any> => {
   return getDefaultSession().generateStructuredOutput(options);
 };
@@ -222,7 +297,7 @@ export const generateStructuredOutput = async (
  * @deprecated Use AppleLLMSession class instead
  */
 export const generateWithTools = async (
-  options: LLMGenerateWithToolsOptions
+  options: LLMGenerateWithToolsOptions,
 ): Promise<any> => {
   return getDefaultSession().generateWithTools(options);
 };
@@ -234,4 +309,4 @@ export const resetSession = async (): Promise<boolean> => {
   return getDefaultSession().reset();
 };
 
-export * from "./types";
+export * from './types';

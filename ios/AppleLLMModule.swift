@@ -60,7 +60,7 @@ class AppleLLMModule: RCTEventEmitter {
   }
   
   override func supportedEvents() -> [String]! {
-    return ["ToolInvocation"]
+    return ["ToolInvocation", "TextGenerationChunk"]
   }
 
   private var session: LanguageModelSession?
@@ -309,14 +309,32 @@ class AppleLLMModule: RCTEventEmitter {
       return
     }
 
+    let shouldStream = options["stream"] != nil
+
     Task {
       do {
-        let result = try await session.respond(
+        let stream = session.streamResponse(
           to: prompt,
           options: GenerationOptions(sampling: .greedy)
         )
-        print("result: \((result.content))")
-        resolve(result.content)
+
+        var fullContent = ""
+        for try await snapshot in stream {
+          let chunk = snapshot.content
+          fullContent = chunk
+
+          if shouldStream {
+            DispatchQueue.main.async {
+              self.sendEvent(
+                withName: "TextGenerationChunk",
+                body: ["chunk": chunk]
+              )
+            }
+          }
+        }
+
+        print("result: \(fullContent)")
+        resolve(fullContent)
 
       } catch let error{
         let errorMessage = handleGeneratedError(error as! LanguageModelSession.GenerationError)
@@ -380,40 +398,56 @@ class AppleLLMModule: RCTEventEmitter {
       reject("SESSION_NOT_CONFIGURED", "Call configureSession first", nil)
       return
     }
-    
+
     guard let prompt = options["prompt"] as? String else {
       reject("INVALID_INPUT", "Missing 'prompt' field", nil)
       return
     }
-    
+
     let maxTokens = options["maxTokens"] as? Int ?? 1000 // default to 1000 tokens
     let temperature = options["temperature"] as? Double ?? 0.5 // default to 0.5
     let toolTimeout = options["toolTimeout"] as? Int ?? 30000 // default to 30 seconds
+    let shouldStream = options["stream"] != nil
     self.toolTimeout = toolTimeout
 
     Task {
       do {
         var generationOptions = GenerationOptions(sampling: .greedy)
-        
+
         generationOptions = GenerationOptions(
             sampling: generationOptions.sampling,
             temperature: temperature,
             maximumResponseTokens: maxTokens
         )
-        
-        // Generate response with tools enabled
-        let result = try await session.respond(
+
+        // Generate response with tools enabled using streaming
+        let stream = session.streamResponse(
           to: prompt,
           options: generationOptions
         )
-        
-        resolve(result.content)
-        
+
+        var fullContent = ""
+        for try await snapshot in stream {
+          let chunk = snapshot.content
+          fullContent = chunk
+
+          if shouldStream {
+            DispatchQueue.main.async {
+              self.sendEvent(
+                withName: "TextGenerationChunk",
+                body: ["chunk": chunk]
+              )
+            }
+          }
+        }
+
+        resolve(fullContent)
+
       } catch let error {
         let errorMessage = handleGeneratedError(error as! LanguageModelSession.GenerationError)
         reject(
-          "GENERATION_FAILED", 
-          errorMessage, 
+          "GENERATION_FAILED",
+          errorMessage,
           error
         )
       }
