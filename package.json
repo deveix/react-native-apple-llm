@@ -68,6 +68,9 @@
     "lint:swift": "swiftlint ios",
     "lint-fix:swift": "swiftlint --fix ios"
   },
+  "dependencies": {
+    "events": "^3.3.0"
+  },
   "peerDependencies": {
     "react": "*",
     "react-native": ">=0.70.0"
