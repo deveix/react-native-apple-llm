@@ -1,6 +1,6 @@
-import { NativeModules, NativeEventEmitter } from "react-native";
+import NativeAppleLLM from "./NativeAppleLLMModule";
 
-const { AppleLLMModule } = NativeModules;
+const AppleLLMModule = NativeAppleLLM;
 
 if (!AppleLLMModule) {
   console.log("AppleLLM native module is not available");
@@ -30,13 +30,8 @@ export const isFoundationModelsEnabled =
  */
 export class AppleLLMSession {
   private toolHandlers = new Map<string, (parameters: any) => Promise<any>>();
-  private eventEmitter: NativeEventEmitter;
   private isConfigured = false;
   private activeToolListener?: any;
-
-  constructor() {
-    this.eventEmitter = new NativeEventEmitter(AppleLLMModule);
-  }
 
   /**
    * Configure the session with options and tools
@@ -47,12 +42,14 @@ export class AppleLLMSession {
   ): Promise<boolean> {
     // Clear existing tools
     this.toolHandlers.clear();
-    
+
     // Register new tools
     if (tools) {
-      await Promise.all(tools.map(async (tool) => {
-        await this.registerTool(tool);
-      }));
+      await Promise.all(
+        tools.map(async (tool) => {
+          await this.registerTool(tool);
+        })
+      );
     }
 
     const success = await AppleLLMModule.configureSession(options);
@@ -81,15 +78,15 @@ export class AppleLLMSession {
    */
   async generateWithTools(options: LLMGenerateWithToolsOptions): Promise<any> {
     this.ensureConfigured();
-    
+
     // Clean up any existing listener
     if (this.activeToolListener) {
       this.activeToolListener.remove();
+      this.activeToolListener = undefined;
     }
 
     // Set up tool call listener
-    this.activeToolListener = this.eventEmitter.addListener(
-      'ToolInvocation',
+    this.activeToolListener = AppleLLMModule.onToolInvocation(
       async (event: { name: string; id: string; parameters: any }) => {
         try {
           const handler = this.toolHandlers.get(event.name);
@@ -101,9 +98,9 @@ export class AppleLLMSession {
             });
             return;
           }
-          
+
           const result = await handler(event.parameters);
-          
+
           await AppleLLMModule.handleToolResult({
             id: event.id,
             success: true,
@@ -113,7 +110,7 @@ export class AppleLLMSession {
           await AppleLLMModule.handleToolResult({
             id: event.id,
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
       }
@@ -137,7 +134,7 @@ export class AppleLLMSession {
   private async registerTool(toolDefinition: ToolDefinition): Promise<boolean> {
     // Map the name to the handler
     this.toolHandlers.set(toolDefinition.schema.name, toolDefinition.handler);
-    
+
     // Register the tool definition with the native module
     return AppleLLMModule.registerTool(toolDefinition.schema);
   }
@@ -148,7 +145,7 @@ export class AppleLLMSession {
   async reset(): Promise<boolean> {
     this.toolHandlers.clear();
     this.isConfigured = false;
-    
+
     // Clean up any active listeners
     if (this.activeToolListener) {
       this.activeToolListener.remove();
@@ -172,7 +169,9 @@ export class AppleLLMSession {
 
   private ensureConfigured(): void {
     if (!this.isConfigured) {
-      throw new Error('Session must be configured before use. Call configure() first.');
+      throw new Error(
+        "Session must be configured before use. Call configure() first."
+      );
     }
   }
 }

@@ -8,7 +8,7 @@ export type StructureSchema = {
     [key: string]: StructureProperty;
 };
 export interface ToolParameter {
-    type: "string" | "integer" | "number" | "boolean" | "object" | "array";
+    type: "string" | "integer" | "number" | "boolean" | "object";
     description: string;
     name: string;
     enum?: string[];
@@ -36,7 +36,6 @@ export interface LLMGenerateTextOptions {
 }
 export interface LLMGenerateWithToolsOptions {
     prompt: string;
-    maxToolCalls?: number;
     maxTokens?: number;
     temperature?: number;
     toolTimeout?: number;

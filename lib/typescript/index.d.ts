@@ -9,10 +9,8 @@ export declare const isFoundationModelsEnabled: () => Promise<FoundationModelsAv
  */
 export declare class AppleLLMSession {
     private toolHandlers;
-    private eventEmitter;
     private isConfigured;
     private activeToolListener?;
-    constructor();
     /**
      * Configure the session with options and tools
      */
