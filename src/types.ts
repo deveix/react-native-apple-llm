@@ -1,7 +1,7 @@
-import { EventEmitter } from 'events';
+import { EventEmitter } from "events";
 
 export type StructureProperty = {
-  type?: 'string' | 'integer' | 'number' | 'boolean' | 'object';
+  type?: "string" | "integer" | "number" | "boolean" | "object";
   description?: string;
   enum?: string[];
   properties?: StructureSchema;
@@ -12,7 +12,7 @@ export type StructureSchema = {
 };
 
 export interface ToolParameter {
-  type: 'string' | 'integer' | 'number' | 'boolean' | 'object';
+  type: "string" | "integer" | "number" | "boolean" | "object";
   description: string;
   name: string;
   enum?: string[];
@@ -62,7 +62,7 @@ export interface ToolCall {
 }
 
 export type FoundationModelsAvailability =
-  | 'available'
-  | 'appleIntelligenceNotEnabled'
-  | 'modelNotReady'
-  | 'unavailable';
+  | "available"
+  | "appleIntelligenceNotEnabled"
+  | "modelNotReady"
+  | "unavailable";

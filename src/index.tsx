@@ -1,5 +1,5 @@
 import { NativeModules, NativeEventEmitter } from "react-native";
-import { EventEmitter } from 'events';
+import { EventEmitter } from "events";
 
 import {
   FoundationModelsAvailability,
@@ -8,7 +8,7 @@ import {
   LLMGenerateTextOptions,
   LLMGenerateTextStreamOptions,
   LLMGenerateWithToolsOptions,
-  ToolDefinition,
+  ToolDefinition
 } from "./types";
 
 const { AppleLLMModule } = NativeModules;
@@ -52,9 +52,11 @@ export class AppleLLMSession {
 
     // Register new tools
     if (tools) {
-      await Promise.all(tools.map(async (tool) => {
-        await this.registerTool(tool);
-      }));
+      await Promise.all(
+        tools.map(async (tool) => {
+          await this.registerTool(tool);
+        })
+      );
     }
 
     const success = await AppleLLMModule.configureSession(options);
@@ -69,18 +71,18 @@ export class AppleLLMSession {
     this.ensureConfigured();
 
     const listener = this.eventEmitter.addListener(
-      'TextGenerationChunk',
+      "TextGenerationChunk",
       (_event: { chunk: string }) => {
         // Chunks are emitted via events for the stream to consume
         const stream = options.stream;
-        if (stream) stream.emit('data', _event.chunk);
+        if (stream) stream.emit("data", _event.chunk);
       }
     );
 
     try {
       const result = await AppleLLMModule.generateText({
         prompt: options.prompt,
-        stream: options.stream,
+        stream: options.stream
       });
       return result;
     } finally {
@@ -110,17 +112,17 @@ export class AppleLLMSession {
     // Set up streaming listener if stream is provided
     const streamListener = options.stream
       ? this.eventEmitter.addListener(
-          'TextGenerationChunk',
+          "TextGenerationChunk",
           (_event: { chunk: string }) => {
             const stream = options.stream;
-            if (stream) stream.emit('data', _event.chunk);
+            if (stream) stream.emit("data", _event.chunk);
           }
         )
       : null;
 
     // Set up tool call listener
     this.activeToolListener = this.eventEmitter.addListener(
-      'ToolInvocation',
+      "ToolInvocation",
       async (event: { name: string; id: string; parameters: any }) => {
         try {
           const handler = this.toolHandlers.get(event.name);
@@ -128,7 +130,7 @@ export class AppleLLMSession {
             await AppleLLMModule.handleToolResult({
               id: event.id,
               success: false,
-              error: `No handler registered for tool: ${event.name}`,
+              error: `No handler registered for tool: ${event.name}`
             });
             return;
           }
@@ -138,13 +140,13 @@ export class AppleLLMSession {
           await AppleLLMModule.handleToolResult({
             id: event.id,
             success: true,
-            result,
+            result
           });
         } catch (error) {
           await AppleLLMModule.handleToolResult({
             id: event.id,
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error"
           });
         }
       }
@@ -207,28 +209,30 @@ export class AppleLLMSession {
   /**
    * Generate text as a ReadableStream
    */
-  generateTextStream(options: LLMGenerateTextStreamOptions): ReadableStream<string> {
+  generateTextStream(
+    options: LLMGenerateTextStreamOptions
+  ): ReadableStream<string> {
     this.ensureConfigured();
 
     return new ReadableStream<string>({
       start: async (controller) => {
         const streamEmitter = new EventEmitter();
 
-        streamEmitter.on('data', (chunk: string) => {
+        streamEmitter.on("data", (chunk: string) => {
           controller.enqueue(chunk);
         });
 
         const listener = this.eventEmitter.addListener(
-          'TextGenerationChunk',
+          "TextGenerationChunk",
           (event: { chunk: string }) => {
-            streamEmitter.emit('data', event.chunk);
+            streamEmitter.emit("data", event.chunk);
           }
         );
 
         try {
           await AppleLLMModule.generateText({
             prompt: options.prompt,
-            stream: streamEmitter,
+            stream: streamEmitter
           });
           controller.close();
         } catch (error) {
@@ -237,13 +241,15 @@ export class AppleLLMSession {
           listener.remove();
           streamEmitter.removeAllListeners();
         }
-      },
+      }
     });
   }
 
   private ensureConfigured(): void {
     if (!this.isConfigured) {
-      throw new Error('Session must be configured before use. Call configure() first.');
+      throw new Error(
+        "Session must be configured before use. Call configure() first."
+      );
     }
   }
 }
