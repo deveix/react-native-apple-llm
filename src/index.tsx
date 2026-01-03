@@ -13,7 +13,7 @@ import {
   LLMGenerateOptions,
   LLMGenerateTextOptions,
   LLMGenerateWithToolsOptions,
-  ToolDefinition,
+  ToolDefinition
 } from "./types";
 
 /**
@@ -94,7 +94,7 @@ export class AppleLLMSession {
             await AppleLLMModule.handleToolResult({
               id: event.id,
               success: false,
-              error: `No handler registered for tool: ${event.name}`,
+              error: `No handler registered for tool: ${event.name}`
             });
             return;
           }
@@ -104,13 +104,13 @@ export class AppleLLMSession {
           await AppleLLMModule.handleToolResult({
             id: event.id,
             success: true,
-            result,
+            result
           });
         } catch (error) {
           await AppleLLMModule.handleToolResult({
             id: event.id,
             success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
+            error: error instanceof Error ? error.message : "Unknown error"
           });
         }
       }
