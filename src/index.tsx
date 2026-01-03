@@ -1,22 +1,22 @@
+import NativeAppleLLM from "./NativeAppleLLMModule";
 import { NativeModules, NativeEventEmitter } from "react-native";
 import { EventEmitter } from "events";
+
+const AppleLLMModule = NativeAppleLLM;
+
+if (!AppleLLMModule) {
+  console.log("AppleLLM native module is not available");
+  throw new Error("AppleLLM native module is not available");
+}
 
 import {
   FoundationModelsAvailability,
   LLMConfigOptions,
   LLMGenerateOptions,
   LLMGenerateTextOptions,
-  LLMGenerateTextStreamOptions,
   LLMGenerateWithToolsOptions,
   ToolDefinition
 } from "./types";
-
-const { AppleLLMModule } = NativeModules;
-
-if (!AppleLLMModule) {
-  console.log("AppleLLM native module is not available");
-  throw new Error("AppleLLM native module is not available");
-}
 
 /**
  * Check if Foundation Models (Apple Intelligence) are enabled and available.
@@ -32,13 +32,8 @@ export const isFoundationModelsEnabled =
  */
 export class AppleLLMSession {
   private toolHandlers = new Map<string, (parameters: any) => Promise<any>>();
-  private eventEmitter: NativeEventEmitter;
   private isConfigured = false;
   private activeToolListener?: any;
-
-  constructor() {
-    this.eventEmitter = new NativeEventEmitter(AppleLLMModule);
-  }
 
   /**
    * Configure the session with options and tools
@@ -107,6 +102,7 @@ export class AppleLLMSession {
     // Clean up any existing listener
     if (this.activeToolListener) {
       this.activeToolListener.remove();
+      this.activeToolListener = undefined;
     }
 
     // Set up streaming listener if stream is provided
@@ -121,8 +117,7 @@ export class AppleLLMSession {
       : null;
 
     // Set up tool call listener
-    this.activeToolListener = this.eventEmitter.addListener(
-      "ToolInvocation",
+    this.activeToolListener = AppleLLMModule.onToolInvocation(
       async (event: { name: string; id: string; parameters: any }) => {
         try {
           const handler = this.toolHandlers.get(event.name);

@@ -4,67 +4,74 @@
 //  Created by Ahmed Kasem on 16/06/25.
 
 import Foundation
-import FoundationModels
 import React
+
+#if canImport(FoundationModels)
+  import FoundationModels
+#endif
 
 @available(iOS 26, *)
 class BridgeTool: Tool, @unchecked Sendable {
 
-    typealias Arguments = GeneratedContent
+  typealias Arguments = GeneratedContent
 
-    let name: String
-    let description: String
-    let schema: GenerationSchema
-    private weak var module: AppleLLMModule?
+  let name: String
+  let description: String
+  let schema: GenerationSchema
+  private weak var module: NativeAppleLLMModule?
 
-    var parameters: GenerationSchema {
-        return schema
+  var parameters: GenerationSchema {
+    return schema
+  }
+
+  init(
+    name: String, description: String, parameters: [String: [String: Any]],
+    module: NativeAppleLLMModule
+  ) {
+    self.name = name
+    self.description = description
+    self.module = module
+
+    let rootSchema = module.dynamicSchema(from: parameters, name: name)
+    self.schema = try! GenerationSchema(root: rootSchema, dependencies: [])
+  }
+
+  func call(arguments: GeneratedContent) async throws -> GeneratedContent {
+    guard let module = module else {
+      throw NSError(
+        domain: "BridgeToolError", code: 1,
+        userInfo: [NSLocalizedDescriptionKey: "Module reference lost"])
     }
 
-    init(name: String, description: String, parameters: [String: [String: Any]], module: AppleLLMModule) {
-        self.name = name
-        self.description = description
-        self.module = module
+    let invocationArgs = try module.flattenGeneratedContent(arguments) as? [String: Any] ?? [:]
 
-        let rootSchema = module.dynamicSchema(from: parameters, name: name)
-        self.schema = try! GenerationSchema(root: rootSchema, dependencies: [])
-    }
-
-    func call(arguments: GeneratedContent) async throws -> GeneratedContent {
-        guard let module = module else {
-            throw NSError(domain: "BridgeToolError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Module reference lost"])
-        }
-
-        let invocationArgs = try module.flattenGeneratedContent(arguments) as? [String: Any] ?? [:]
-
-        let id = UUID().uuidString
-        return GeneratedContent(try await module.invokeTool(name: name, id: id, parameters: invocationArgs))
-    }
+    let id = UUID().uuidString
+    return GeneratedContent(
+      try await module.invokeTool(name: name, id: id, parameters: invocationArgs))
+  }
 }
 
-@objc(AppleLLMModule)
+@objc(NativeAppleLLMModule)
 @available(iOS 26, *)
 @objcMembers
-class AppleLLMModule: RCTEventEmitter {
+public class NativeAppleLLMModule: NSObject {
 
-  override static func moduleName() -> String! {
-    return "AppleLLMModule"
+  @nonobjc private var session: LanguageModelSession?
+  @nonobjc private var registeredTools: [String: BridgeTool] = [:]
+  @nonobjc private var toolHandlers: [String: (String, [String: Any]) -> Void] = [:]
+  @nonobjc private var toolTimeout: Int = 30000
+
+  // Event emitter callbacks
+  @nonobjc private var onToolInvocation: ((NSDictionary) -> Void)?
+
+  public init(
+    onToolInvocation: @escaping (NSDictionary) -> Void
+  ) {
+    self.onToolInvocation = onToolInvocation
+    super.init()
   }
 
-  override static func requiresMainQueueSetup() -> Bool {
-    return false
-  }
-
-  override func supportedEvents() -> [String]! {
-    return ["ToolInvocation", "TextGenerationChunk"]
-  }
-
-  private var session: LanguageModelSession?
-  private var registeredTools: [String: BridgeTool] = [:]
-  private var toolHandlers: [String: (String, [String: Any]) -> Void] = [:]
-  private var toolTimeout: Int = 30000
-
-  func isFoundationModelsEnabled(
+  public func isFoundationModelsEnabled(
     _ resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
@@ -90,7 +97,7 @@ class AppleLLMModule: RCTEventEmitter {
     #endif
   }
 
-  func configureSession(
+  public func configureSession(
     _ config: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
@@ -108,7 +115,7 @@ class AppleLLMModule: RCTEventEmitter {
       }
     }
 
-    let tools = Array(registeredTools.values)
+    let tools = Array(self.registeredTools.values)
     self.session = LanguageModelSession(tools: tools, instructions: instructions)
     resolve(true)
   }
@@ -229,16 +236,16 @@ class AppleLLMModule: RCTEventEmitter {
       return boolVal
     }
 
-    if let jsonString = content.jsonString.data(using: .utf8 ) {
-        if let dict = try?JSONSerialization.jsonObject(with: jsonString) as? [String: Any] {
-            return dict
-        }
+    if let jsonString = content.jsonString.data(using: .utf8) {
+      if let dict = try? JSONSerialization.jsonObject(with: jsonString) as? [String: Any] {
+        return dict
+      }
     }
 
     return "failed to parse content"
   }
 
-  func generateStructuredOutput(
+  public func generateStructuredOutput(
     _ options: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
@@ -285,7 +292,7 @@ class AppleLLMModule: RCTEventEmitter {
     }
   }
 
-  func generateText(
+  public func generateText(
     _ options: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
@@ -335,14 +342,15 @@ class AppleLLMModule: RCTEventEmitter {
     }
   }
 
-  func registerTool(
+  public func registerTool(
     _ toolDefinition: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
     guard let name = toolDefinition["name"] as? String,
-          let description = toolDefinition["description"] as? String,
-          let parameters = toolDefinition["parameters"] as? [String: [String: Any]] else {
+      let description = toolDefinition["description"] as? String,
+      let parameters = toolDefinition["parameters"] as? [String: [String: Any]]
+    else {
       reject("INVALID_TOOL_DEFINITION", "Invalid tool definition structure", nil)
       return
     }
@@ -358,7 +366,7 @@ class AppleLLMModule: RCTEventEmitter {
     resolve(true)
   }
 
-  func handleToolResult(
+  public func handleToolResult(
     _ result: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
@@ -368,16 +376,16 @@ class AppleLLMModule: RCTEventEmitter {
       return
     }
 
-    // here we call handler and remove from pending 
+    // here we call handler and remove from pending
     if let handler = toolHandlers[id] {
       handler(id, result as! [String: Any])
-      toolHandlers.removeValue(forKey: id) // remove from pending 
+      toolHandlers.removeValue(forKey: id)  // remove from pending
     }
 
     resolve(true)
   }
 
-  func generateWithTools(
+  public func generateWithTools(
     _ options: NSDictionary,
     resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
@@ -403,9 +411,9 @@ class AppleLLMModule: RCTEventEmitter {
         var generationOptions = GenerationOptions(sampling: .greedy)
 
         generationOptions = GenerationOptions(
-            sampling: generationOptions.sampling,
-            temperature: temperature,
-            maximumResponseTokens: maxTokens
+          sampling: generationOptions.sampling,
+          temperature: temperature,
+          maximumResponseTokens: maxTokens
         )
 
         // Generate response with tools enabled using streaming
@@ -454,11 +462,12 @@ class AppleLLMModule: RCTEventEmitter {
             continuation.resume(returning: result["result"] as? String ?? "No result")
           } else {
             let error = result["error"] as? String ?? "Unknown tool execution error"
-            continuation.resume(throwing: NSError(
-              domain: "ToolExecutionError",
-              code: 1,
-              userInfo: [NSLocalizedDescriptionKey: error]
-            ))
+            continuation.resume(
+              throwing: NSError(
+                domain: "ToolExecutionError",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: error]
+              ))
           }
         }
       }
@@ -466,15 +475,13 @@ class AppleLLMModule: RCTEventEmitter {
       toolHandlers[continuationKey] = handler
 
       // Send tool invocation to React Native
+
       DispatchQueue.main.async {
-        self.sendEvent(
-          withName: "ToolInvocation",
-          body: [
-            "name": name,
-            "id": id,
-            "parameters": parameters
-          ]
-        )
+        self.onToolInvocation?([
+          "name": name,
+          "id": id,
+          "parameters": parameters,
+        ])
       }
 
       // Set up a timeout in case the tool never returns, maybe there is a better way to do this? also possibly let the user set the timeout 
@@ -483,17 +490,18 @@ class AppleLLMModule: RCTEventEmitter {
 
         if self.toolHandlers[continuationKey] != nil {
           self.toolHandlers.removeValue(forKey: continuationKey)
-          continuation.resume(throwing: NSError(
-            domain: "ToolExecutionError",
-            code: 2,
-            userInfo: [NSLocalizedDescriptionKey: "Tool execution timeout"]
-          ))
+          continuation.resume(
+            throwing: NSError(
+              domain: "ToolExecutionError",
+              code: 2,
+              userInfo: [NSLocalizedDescriptionKey: "Tool execution timeout"]
+            ))
         }
       }
     }
   }
 
-  func resetSession(
+  public func resetSession(
     _ resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
@@ -507,33 +515,35 @@ class AppleLLMModule: RCTEventEmitter {
 // refernce: https://developer.apple.com/forums/thread/792076?answerId=848076022#848076022
 @available(iOS 26.0, *)
 private func handleGeneratedError(_ error: LanguageModelSession.GenerationError) -> String {
-    switch error {
-    case .exceededContextWindowSize(let context):
-        return presentGeneratedError(error, context: context)
-    case .assetsUnavailable(let context):
-        return presentGeneratedError(error, context: context)
-    case .guardrailViolation(let context):
-        return presentGeneratedError(error, context: context)
-    case .unsupportedGuide(let context):
-        return presentGeneratedError(error, context: context)
-    case .unsupportedLanguageOrLocale(let context):
-        return presentGeneratedError(error, context: context)
-    case .decodingFailure(let context):
-        return presentGeneratedError(error, context: context)
-    case .rateLimited(let context):
-        return presentGeneratedError(error, context: context)
-    default:
-        return "Failed to respond: \(error.localizedDescription)"
-    }
+  switch error {
+  case .exceededContextWindowSize(let context):
+    return presentGeneratedError(error, context: context)
+  case .assetsUnavailable(let context):
+    return presentGeneratedError(error, context: context)
+  case .guardrailViolation(let context):
+    return presentGeneratedError(error, context: context)
+  case .unsupportedGuide(let context):
+    return presentGeneratedError(error, context: context)
+  case .unsupportedLanguageOrLocale(let context):
+    return presentGeneratedError(error, context: context)
+  case .decodingFailure(let context):
+    return presentGeneratedError(error, context: context)
+  case .rateLimited(let context):
+    return presentGeneratedError(error, context: context)
+  default:
+    return "Failed to respond: \(error.localizedDescription)"
+  }
 }
 
 @available(iOS 26.0, *)
-private func presentGeneratedError(_ error: LanguageModelSession.GenerationError,
-                                   context: LanguageModelSession.GenerationError.Context) -> String {
-    return """
-        Failed to respond: \(error.localizedDescription).
-        Failure reason: \(String(describing: error.failureReason)).
-        Recovery suggestion: \(String(describing: error.recoverySuggestion)).
-        Context: \(context)
-        """
+private func presentGeneratedError(
+  _ error: LanguageModelSession.GenerationError,
+  context: LanguageModelSession.GenerationError.Context
+) -> String {
+  return """
+    Failed to respond: \(error.localizedDescription).
+    Failure reason: \(String(describing: error.failureReason)).
+    Recovery suggestion: \(String(describing: error.recoverySuggestion)).
+    Context: \(context)
+    """
 }
