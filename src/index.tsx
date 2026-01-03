@@ -15,6 +15,7 @@ import {
   LLMGenerateOptions,
   LLMGenerateTextOptions,
   LLMGenerateWithToolsOptions,
+  LLMGenerateTextStreamOptions,
   ToolDefinition
 } from "./types";
 
@@ -65,23 +66,23 @@ export class AppleLLMSession {
   async generateText(options: LLMGenerateTextOptions): Promise<string> {
     this.ensureConfigured();
 
-    const listener = this.eventEmitter.addListener(
+    /*const listener = this.eventEmitter.addListener(
       "TextGenerationChunk",
       (_event: { chunk: string }) => {
         // Chunks are emitted via events for the stream to consume
         const stream = options.stream;
         if (stream) stream.emit("data", _event.chunk);
       }
-    );
+    );*/
 
     try {
       const result = await AppleLLMModule.generateText({
-        prompt: options.prompt,
-        stream: options.stream
+        prompt: options.prompt
+        //stream: options.stream
       });
       return result;
     } finally {
-      listener.remove();
+      //listener.remove();
     }
   }
 
@@ -107,13 +108,13 @@ export class AppleLLMSession {
 
     // Set up streaming listener if stream is provided
     const streamListener = options.stream
-      ? this.eventEmitter.addListener(
+      ? /*this.eventEmitter.addListener(
           "TextGenerationChunk",
           (_event: { chunk: string }) => {
             const stream = options.stream;
             if (stream) stream.emit("data", _event.chunk);
           }
-        )
+        )*/ null
       : null;
 
     // Set up tool call listener
@@ -153,7 +154,7 @@ export class AppleLLMSession {
     } finally {
       // Clean up listeners
       if (streamListener) {
-        streamListener.remove();
+        //streamListener.remove();
       }
       if (this.activeToolListener) {
         this.activeToolListener.remove();
@@ -217,23 +218,23 @@ export class AppleLLMSession {
           controller.enqueue(chunk);
         });
 
-        const listener = this.eventEmitter.addListener(
+        /*const listener = this.eventEmitter.addListener(
           "TextGenerationChunk",
           (event: { chunk: string }) => {
             streamEmitter.emit("data", event.chunk);
           }
-        );
+        );*/
 
         try {
           await AppleLLMModule.generateText({
-            prompt: options.prompt,
-            stream: streamEmitter
+            prompt: options.prompt
+            //stream: streamEmitter
           });
           controller.close();
         } catch (error) {
           controller.error(error);
         } finally {
-          listener.remove();
+          //listener.remove();
           streamEmitter.removeAllListeners();
         }
       }
