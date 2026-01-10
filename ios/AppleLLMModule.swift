@@ -4,11 +4,14 @@
 //  Created by Ahmed Kasem on 16/06/25.
 
 import Foundation
-import React
 
 #if canImport(FoundationModels)
   import FoundationModels
 #endif
+
+// React types (RCTPromiseResolveBlock, RCTPromiseRejectBlock) are available through the bridging header
+public typealias RCTPromiseResolveBlock = @convention(block) (Any?) -> Void
+public typealias RCTPromiseRejectBlock = @convention(block) (String?, String?, Error?) -> Void
 
 @available(iOS 26, *)
 class BridgeTool: Tool, @unchecked Sendable {
@@ -18,7 +21,7 @@ class BridgeTool: Tool, @unchecked Sendable {
   let name: String
   let description: String
   let schema: GenerationSchema
-  private weak var module: NativeAppleLLMModule?
+  private weak var module: NativeAppleLLMModuleImpl?
 
   var parameters: GenerationSchema {
     return schema
@@ -26,7 +29,7 @@ class BridgeTool: Tool, @unchecked Sendable {
 
   init(
     name: String, description: String, parameters: [String: [String: Any]],
-    module: NativeAppleLLMModule
+    module: NativeAppleLLMModuleImpl
   ) {
     self.name = name
     self.description = description
@@ -51,24 +54,30 @@ class BridgeTool: Tool, @unchecked Sendable {
   }
 }
 
-@objc(NativeAppleLLMModule)
+// Internal implementation class (iOS 26+ only)
 @available(iOS 26, *)
 @objcMembers
-public class NativeAppleLLMModule: NSObject {
+class NativeAppleLLMModuleImpl: NSObject {
 
-  @nonobjc private var session: LanguageModelSession?
-  @nonobjc private var registeredTools: [String: BridgeTool] = [:]
-  @nonobjc private var toolHandlers: [String: (String, [String: Any]) -> Void] = [:]
-  @nonobjc private var toolTimeout: Int = 30000
+  #if canImport(FoundationModels)
+    @available(iOS 26, *)
+    private var session: LanguageModelSession?
+    @available(iOS 26, *)
+    private var registeredTools: [String: BridgeTool] = [:]
+  #endif
+
+  private var toolHandlers: [String: (String, [String: Any]) -> Void] = [:]
+  private var toolTimeout: Int = 30000
 
   // Event emitter callbacks
-  @nonobjc private var onToolInvocation: ((NSDictionary) -> Void)?
+  private var onToolInvocation: ((NSDictionary) -> Void)?
 
-  public init(
-    onToolInvocation: @escaping (NSDictionary) -> Void
-  ) {
-    self.onToolInvocation = onToolInvocation
+  public override init() {
     super.init()
+  }
+
+  @objc public func setOnToolInvocation(_ callback: @escaping (NSDictionary) -> Void) {
+    self.onToolInvocation = callback
   }
 
   public func isFoundationModelsEnabled(
@@ -102,22 +111,30 @@ public class NativeAppleLLMModule: NSObject {
     resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
   ) {
-    let model = SystemLanguageModel.default
-    if model.availability != .available {
-      reject("UNAVAILABLE", "Foundation Models are not available", nil)
-      return
-    }
-    let instructions = Instructions {
-      if let prompt = config["instructions"] as? String {
-        prompt
-      } else {
-        "You are a helpful assistant that returns structured JSON data based on a given schema."
-      }
-    }
+    #if canImport(FoundationModels)
+      if #available(iOS 26, *) {
+        let model = SystemLanguageModel.default
+        guard model.availability == .available else {
+          reject("UNAVAILABLE", "Foundation Models are not available", nil)
+          return
+        }
+        let instructions = Instructions {
+          if let prompt = config["instructions"] as? String {
+            prompt
+          } else {
+            "You are a helpful assistant that returns structured JSON data based on a given schema."
+          }
+        }
 
-    let tools = Array(self.registeredTools.values)
-    self.session = LanguageModelSession(tools: tools, instructions: instructions)
-    resolve(true)
+        let tools = Array(self.registeredTools.values)
+        self.session = LanguageModelSession(tools: tools, instructions: instructions)
+        resolve(true)
+      } else {
+        reject("UNAVAILABLE", "Foundation Models require iOS 26+", nil)
+      }
+    #else
+      reject("UNAVAILABLE", "Foundation Models are not available", nil)
+    #endif
   }
 
   // Generables for Premitives
@@ -513,4 +530,135 @@ private func presentGeneratedError(
     Recovery suggestion: \(String(describing: error.recoverySuggestion)).
     Context: \(context)
     """
+}
+
+// Public wrapper class that's always available - handles iOS 26+ checks internally
+@objc(NativeAppleLLMModule)
+@objcMembers
+public class NativeAppleLLMModule: NSObject {
+  // Non-available stored property (works in Xcode 14+)
+  #if canImport(FoundationModels)
+    private var _impl: Any? = nil
+
+    @available(iOS 26, *)
+    private var impl: NativeAppleLLMModuleImpl? {
+      get {
+        return _impl as? NativeAppleLLMModuleImpl
+      }
+      set {
+        _impl = newValue
+      }
+    }
+  #endif
+
+  public override init() {
+    super.init()
+    if #available(iOS 26, *) {
+      impl = NativeAppleLLMModuleImpl()
+    }
+  }
+
+  @objc public func setOnToolInvocation(_ callback: @escaping (NSDictionary) -> Void) {
+    if #available(iOS 26, *) {
+      impl?.setOnToolInvocation(callback)
+    }
+  }
+
+  public func isFoundationModelsEnabled(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    if #available(iOS 26, *), let impl = impl {
+      impl.isFoundationModelsEnabled(resolve, rejecter: reject)
+    } else {
+      resolve("unavailable")
+    }
+  }
+
+  public func configureSession(
+    _ config: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    if #available(iOS 26, *), let impl = impl {
+      impl.configureSession(config, resolve: resolve, rejecter: reject)
+    } else {
+      reject("UNAVAILABLE", "Foundation Models require iOS 26+", nil)
+    }
+  }
+
+  public func generateText(
+    _ options: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    if #available(iOS 26, *), let impl = impl {
+      impl.generateText(options, resolve: resolve, rejecter: reject)
+    } else {
+      reject("UNAVAILABLE", "Foundation Models require iOS 26+", nil)
+    }
+  }
+
+  public func generateStructuredOutput(
+    _ options: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    if #available(iOS 26, *), let impl = impl {
+      impl.generateStructuredOutput(options, resolve: resolve, rejecter: reject)
+    } else {
+      reject("UNAVAILABLE", "Foundation Models require iOS 26+", nil)
+    }
+  }
+
+  public func generateWithTools(
+    _ options: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    if #available(iOS 26, *), let impl = impl {
+      impl.generateWithTools(options, resolve: resolve, rejecter: reject)
+    } else {
+      reject("UNAVAILABLE", "Foundation Models require iOS 26+", nil)
+    }
+  }
+
+  public func registerTool(
+    _ toolDefinition: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    if #available(iOS 26, *), let impl = impl {
+      impl.registerTool(toolDefinition, resolve: resolve, rejecter: reject)
+    } else {
+      reject("UNAVAILABLE", "Foundation Models require iOS 26+", nil)
+    }
+  }
+
+  public func handleToolResult(
+    _ result: NSDictionary,
+    resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    if #available(iOS 26, *), let impl = impl {
+      impl.handleToolResult(result, resolve: resolve, rejecter: reject)
+    } else {
+      reject("UNAVAILABLE", "Foundation Models require iOS 26+", nil)
+    }
+  }
+
+  public func resetSession(
+    _ resolve: @escaping RCTPromiseResolveBlock,
+    rejecter reject: @escaping RCTPromiseRejectBlock
+  ) {
+    #if canImport(FoundationModels)
+      if #available(iOS 26, *), let impl = impl {
+        impl.resetSession(resolve, rejecter: reject)
+      } else {
+        resolve(true)
+      }
+    #else
+      resolve(true)
+    #endif
+  }
 }

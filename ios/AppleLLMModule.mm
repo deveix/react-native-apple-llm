@@ -5,10 +5,19 @@
 //
 
 #import "AppleLLMModule.h"
+
+#ifdef RCT_NEW_ARCH_ENABLED
+#import <React/RCTCallInvokerModule.h>
+#import <React/RCTCallInvoker.h>
+#import <ReactCommon/RCTTurboModule.h>
+#endif
+
 #import "AppleLLMModule-Swift.h"
 
+#ifdef RCT_NEW_ARCH_ENABLED
 using namespace facebook;
 using namespace JS::NativeAppleLLMModule;
+#endif
 
 @implementation AppleLLMModule {
   NativeAppleLLMModule *_appleLLM;
@@ -27,17 +36,17 @@ using namespace JS::NativeAppleLLMModule;
   if (self) {
     __weak AppleLLMModule* weakSelf = self;
     
-    _appleLLM = [[NativeAppleLLMModule alloc]
-      initOnTextGenerationChunk:^(NSDictionary * _Nonnull values) {
-        [weakSelf emitOnTextGenerationChunk:values];
-      }
-      onToolInvocation:^(NSDictionary * _Nonnull values) {
-        [weakSelf emitOnToolInvocation:values];
-      }];
+    _appleLLM = [[NativeAppleLLMModule alloc] init];
+    [_appleLLM setOnToolInvocation:^(NSDictionary * _Nonnull values) {
+#ifdef RCT_NEW_ARCH_ENABLED
+      [weakSelf emitOnToolInvocation:values];
+#endif
+    }];
   }
   return self;
 }
 
+#ifdef RCT_NEW_ARCH_ENABLED
 - (std::shared_ptr<facebook::react::TurboModule>)getTurboModule:
     (const facebook::react::ObjCTurboModule::InitParams &)params
 {
@@ -109,6 +118,7 @@ using namespace JS::NativeAppleLLMModule;
 - (void)resetSession:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
   [_appleLLM resetSession:resolve rejecter:reject];
 }
+#endif
 
 @end
 
