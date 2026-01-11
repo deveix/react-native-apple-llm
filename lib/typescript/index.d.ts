@@ -11,6 +11,7 @@ export declare class AppleLLMSession {
     private toolHandlers;
     private isConfigured;
     private activeToolListener?;
+    private activeStreamListener?;
     /**
      * Configure the session with options and tools
      */

@@ -62,11 +62,14 @@ public class NativeAppleLLMModule: NSObject {
   @nonobjc private var toolTimeout: Int = 30000
 
   // Event emitter callbacks
+  @nonobjc private var onTextGenerationChunk: ((NSDictionary) -> Void)?
   @nonobjc private var onToolInvocation: ((NSDictionary) -> Void)?
 
   public init(
+    onTextGenerationChunk: @escaping (NSDictionary) -> Void,
     onToolInvocation: @escaping (NSDictionary) -> Void
   ) {
+    self.onTextGenerationChunk = onTextGenerationChunk
     self.onToolInvocation = onToolInvocation
     super.init()
   }
@@ -307,7 +310,7 @@ public class NativeAppleLLMModule: NSObject {
       return
     }
 
-    let shouldStream = options["stream"] != nil
+    let shouldStream = options["shouldStream"] != nil
 
     Task {
       do {
@@ -323,10 +326,9 @@ public class NativeAppleLLMModule: NSObject {
 
           if shouldStream {
             DispatchQueue.main.async {
-              self.sendEvent(
-                withName: "TextGenerationChunk",
-                body: ["chunk": chunk]
-              )
+              self.onTextGenerationChunk?([
+                "chunk": chunk
+              ])
             }
           }
         }
@@ -403,7 +405,7 @@ public class NativeAppleLLMModule: NSObject {
     let maxTokens = options["maxTokens"] as? Int ?? 1000 // default to 1000 tokens
     let temperature = options["temperature"] as? Double ?? 0.5 // default to 0.5
     let toolTimeout = options["toolTimeout"] as? Int ?? 30000 // default to 30 seconds
-    let shouldStream = options["stream"] != nil
+    let shouldStream = options["shouldStream"] != nil
     self.toolTimeout = toolTimeout
 
     Task {
@@ -429,10 +431,9 @@ public class NativeAppleLLMModule: NSObject {
 
           if shouldStream {
             DispatchQueue.main.async {
-              self.sendEvent(
-                withName: "TextGenerationChunk",
-                body: ["chunk": chunk]
-              )
+              self.onTextGenerationChunk?([
+                "chunk": chunk
+              ])
             }
           }
         }

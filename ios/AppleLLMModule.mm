@@ -60,6 +60,9 @@ using namespace JS::NativeAppleLLMModule;
 - (void)generateText:(GenerateTextOptions &)options resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject {
   NSMutableDictionary *optionsDict = [NSMutableDictionary dictionary];
   optionsDict[@"prompt"] = options.prompt();
+  if (options.shouldStream()) {
+    optionsDict[@"shouldStream"] = @(options.shouldStream().value());
+  }
   [_appleLLM generateText:optionsDict resolve:resolve rejecter:reject];
 }
 
