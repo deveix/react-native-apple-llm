@@ -81,6 +81,10 @@ class NativeAppleLLMModuleImpl: NSObject {
     self.onToolInvocation = callback
   }
 
+  @objc public func setOnTextGenerationChunk(_ callback: @escaping (NSDictionary) -> Void) {
+    self.onTextGenerationChunk = callback
+  }
+
   public func isFoundationModelsEnabled(
     _ resolve: @escaping RCTPromiseResolveBlock,
     rejecter reject: @escaping RCTPromiseRejectBlock
