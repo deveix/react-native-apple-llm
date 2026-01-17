@@ -40,6 +40,7 @@ export interface LLMGenerateOptions {
 
 export interface LLMGenerateTextOptions {
   prompt: string;
+  shouldStream?: boolean;
   stream?: EventEmitter;
 }
 
