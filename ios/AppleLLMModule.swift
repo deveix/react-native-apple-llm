@@ -71,6 +71,7 @@ class NativeAppleLLMModuleImpl: NSObject {
 
   // Event emitter callbacks
   private var onToolInvocation: ((NSDictionary) -> Void)?
+  private var onTextGenerationChunk: ((NSDictionary) -> Void)?
 
   public override init() {
     super.init()
@@ -78,6 +79,10 @@ class NativeAppleLLMModuleImpl: NSObject {
 
   @objc public func setOnToolInvocation(_ callback: @escaping (NSDictionary) -> Void) {
     self.onToolInvocation = callback
+  }
+
+  @objc public func setOnTextGenerationChunk(_ callback: @escaping (NSDictionary) -> Void) {
+    self.onTextGenerationChunk = callback
   }
 
   public func isFoundationModelsEnabled(
@@ -198,8 +203,7 @@ class NativeAppleLLMModuleImpl: NSObject {
   }
 
   private func schemaForType(name: String, type: String, description: String? = nil)
-    -> DynamicGenerationSchema.Property
-  {
+    -> DynamicGenerationSchema.Property {
     return schemaForPrimitiveType(name: name, type: type, description: description)
   }
 
@@ -325,14 +329,31 @@ class NativeAppleLLMModuleImpl: NSObject {
       return
     }
 
+    let shouldStream = options["shouldStream"] != nil
+
     Task {
       do {
-        let result = try await session.respond(
+        let stream = session.streamResponse(
           to: prompt,
           options: GenerationOptions(sampling: .greedy)
         )
-        print("result: \((result.content))")
-        resolve(result.content)
+
+        var fullContent = ""
+        for try await snapshot in stream {
+          let chunk = snapshot.content
+          fullContent = chunk
+
+          if shouldStream {
+            DispatchQueue.main.async {
+              self.onTextGenerationChunk?([
+                "chunk": chunk
+              ])
+            }
+          }
+        }
+
+        print("result: \(fullContent)")
+        resolve(fullContent)
 
       } catch let error {
         let errorMessage = handleGeneratedError(error as! LanguageModelSession.GenerationError)
@@ -400,9 +421,10 @@ class NativeAppleLLMModuleImpl: NSObject {
       return
     }
 
-    let maxTokens = options["maxTokens"] as? Int ?? 1000  // default to 1000 tokens
-    let temperature = options["temperature"] as? Double ?? 0.5  // default to 0.5
-    let toolTimeout = options["toolTimeout"] as? Int ?? 30000  // default to 30 seconds
+    let maxTokens = options["maxTokens"] as? Int ?? 1000 // default to 1000 tokens
+    let temperature = options["temperature"] as? Double ?? 0.5 // default to 0.5
+    let toolTimeout = options["toolTimeout"] as? Int ?? 30000 // default to 30 seconds
+    let shouldStream = options["shouldStream"] != nil
     self.toolTimeout = toolTimeout
 
     Task {
@@ -415,13 +437,27 @@ class NativeAppleLLMModuleImpl: NSObject {
           maximumResponseTokens: maxTokens
         )
 
-        // Generate response with tools enabled
-        let result = try await session.respond(
+        // Generate response with tools enabled using streaming
+        let stream = session.streamResponse(
           to: prompt,
           options: generationOptions
         )
 
-        resolve(result.content)
+        var fullContent = ""
+        for try await snapshot in stream {
+          let chunk = snapshot.content
+          fullContent = chunk
+
+          if shouldStream {
+            DispatchQueue.main.async {
+              self.onTextGenerationChunk?([
+                "chunk": chunk
+              ])
+            }
+          }
+        }
+
+        resolve(fullContent)
 
       } catch let error {
         let errorMessage = handleGeneratedError(error as! LanguageModelSession.GenerationError)
@@ -439,7 +475,7 @@ class NativeAppleLLMModuleImpl: NSObject {
       // Store the continuation to resolve
       let continuationKey = id
 
-      // Create a handler to resolve
+      // Create a handler to resolve 
       let handler = { (resultId: String, result: [String: Any]) in
         if resultId == id {
           if let success = result["success"] as? Bool, success {
@@ -468,9 +504,9 @@ class NativeAppleLLMModuleImpl: NSObject {
         ])
       }
 
-      // Set up a timeout in case the tool never returns, maybe there is a better way to do this? also possibly let the user set the timeout
+      // Set up a timeout in case the tool never returns, maybe there is a better way to do this? also possibly let the user set the timeout 
       Task {
-        try await Task.sleep(nanoseconds: UInt64(self.toolTimeout) * 1_000_000)  // Convert ms to ns
+        try await Task.sleep(nanoseconds: UInt64(self.toolTimeout) * 1_000_000) // Convert ms to ns
 
         if self.toolHandlers[continuationKey] != nil {
           self.toolHandlers.removeValue(forKey: continuationKey)
@@ -561,6 +597,12 @@ public class NativeAppleLLMModule: NSObject {
   @objc public func setOnToolInvocation(_ callback: @escaping (NSDictionary) -> Void) {
     if #available(iOS 26, *) {
       impl?.setOnToolInvocation(callback)
+    }
+  }
+
+  @objc public func setOnTextGenerationChunk(_ callback: @escaping (NSDictionary) -> Void) {
+    if #available(iOS 26, *) {
+      impl?.setOnTextGenerationChunk(callback)
     }
   }
 

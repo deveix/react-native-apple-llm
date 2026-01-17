@@ -1,3 +1,4 @@
+import { EventEmitter } from "events";
 export type StructureProperty = {
     type?: "string" | "integer" | "number" | "boolean" | "object";
     description?: string;
@@ -33,12 +34,17 @@ export interface LLMGenerateOptions {
 }
 export interface LLMGenerateTextOptions {
     prompt: string;
+    stream?: EventEmitter;
+}
+export interface LLMGenerateTextStreamOptions {
+    prompt: string;
 }
 export interface LLMGenerateWithToolsOptions {
     prompt: string;
     maxTokens?: number;
     temperature?: number;
     toolTimeout?: number;
+    stream?: EventEmitter;
 }
 export interface ToolCall {
     name: string;

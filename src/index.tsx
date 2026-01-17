@@ -1,4 +1,6 @@
 import NativeAppleLLM from "./NativeAppleLLMModule";
+import { NativeModules, NativeEventEmitter } from "react-native";
+import { EventEmitter } from "events";
 
 const AppleLLMModule = NativeAppleLLM;
 
@@ -13,7 +15,8 @@ import {
   LLMGenerateOptions,
   LLMGenerateTextOptions,
   LLMGenerateWithToolsOptions,
-  ToolDefinition,
+  LLMGenerateTextStreamOptions,
+  ToolDefinition
 } from "./types";
 
 /**
@@ -32,6 +35,7 @@ export class AppleLLMSession {
   private toolHandlers = new Map<string, (parameters: any) => Promise<any>>();
   private isConfigured = false;
   private activeToolListener?: any;
+  private activeStreamListener?: any;
 
   /**
    * Configure the session with options and tools
@@ -60,9 +64,36 @@ export class AppleLLMSession {
   /**
    * Generate text using text parameter
    */
-  async generateText(options: LLMGenerateTextOptions): Promise<any> {
+  async generateText(options: LLMGenerateTextOptions): Promise<string> {
     this.ensureConfigured();
-    return AppleLLMModule.generateText(options);
+
+    // Clean up any existing stream listener
+    if (this.activeStreamListener) {
+      this.activeStreamListener.remove();
+      this.activeStreamListener = undefined;
+    }
+
+    // Set up streaming listener if stream is provided
+    if (options.stream) {
+      this.activeStreamListener = AppleLLMModule.onTextGenerationChunk(
+        (event: { chunk: string }) => {
+          options.stream?.emit("data", event.chunk);
+        }
+      );
+    }
+
+    try {
+      const result = await AppleLLMModule.generateText({
+        prompt: options.prompt,
+        shouldStream: !!options.stream
+      });
+      return result;
+    } finally {
+      if (this.activeStreamListener) {
+        this.activeStreamListener.remove();
+        this.activeStreamListener = undefined;
+      }
+    }
   }
 
   /**
@@ -79,10 +110,23 @@ export class AppleLLMSession {
   async generateWithTools(options: LLMGenerateWithToolsOptions): Promise<any> {
     this.ensureConfigured();
 
-    // Clean up any existing listener
+    // Clean up any existing listeners
     if (this.activeToolListener) {
       this.activeToolListener.remove();
       this.activeToolListener = undefined;
+    }
+    if (this.activeStreamListener) {
+      this.activeStreamListener.remove();
+      this.activeStreamListener = undefined;
+    }
+
+    // Set up streaming listener if stream is provided
+    if (options.stream) {
+      this.activeStreamListener = AppleLLMModule.onTextGenerationChunk(
+        (event: { chunk: string }) => {
+          options.stream?.emit("data", event.chunk);
+        }
+      );
     }
 
     // Set up tool call listener
@@ -94,7 +138,7 @@ export class AppleLLMSession {
             await AppleLLMModule.handleToolResult({
               id: event.id,
               success: false,
-              error: `No handler registered for tool: ${event.name}`,
+              error: `No handler registered for tool: ${event.name}`
             });
             return;
           }
@@ -104,23 +148,33 @@ export class AppleLLMSession {
           await AppleLLMModule.handleToolResult({
             id: event.id,
             success: true,
-            result,
+            result
           });
         } catch (error) {
           await AppleLLMModule.handleToolResult({
             id: event.id,
             success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
+            error: error instanceof Error ? error.message : "Unknown error"
           });
         }
       }
     );
 
     try {
-      const result = await AppleLLMModule.generateWithTools(options);
+      const result = await AppleLLMModule.generateWithTools({
+        prompt: options.prompt,
+        maxTokens: options.maxTokens,
+        temperature: options.temperature,
+        toolTimeout: options.toolTimeout,
+        shouldStream: !!options.stream
+      });
       return result;
     } finally {
-      // Clean up listener
+      // Clean up listeners
+      if (this.activeStreamListener) {
+        this.activeStreamListener.remove();
+        this.activeStreamListener = undefined;
+      }
       if (this.activeToolListener) {
         this.activeToolListener.remove();
         this.activeToolListener = undefined;
@@ -151,6 +205,10 @@ export class AppleLLMSession {
       this.activeToolListener.remove();
       this.activeToolListener = undefined;
     }
+    if (this.activeStreamListener) {
+      this.activeStreamListener.remove();
+      this.activeStreamListener = undefined;
+    }
 
     return AppleLLMModule.resetSession();
   }
@@ -164,7 +222,43 @@ export class AppleLLMSession {
       this.activeToolListener.remove();
       this.activeToolListener = undefined;
     }
+    if (this.activeStreamListener) {
+      this.activeStreamListener.remove();
+      this.activeStreamListener = undefined;
+    }
     this.isConfigured = false;
+  }
+
+  /**
+   * Generate text as a ReadableStream
+   */
+  generateTextStream(
+    options: LLMGenerateTextStreamOptions
+  ): ReadableStream<string> {
+    this.ensureConfigured();
+
+    return new ReadableStream<string>({
+      start: async (controller) => {
+
+        const listener = AppleLLMModule.onTextGenerationChunk(
+          (event: { chunk: string }) => {
+            controller.enqueue(event.chunk);
+          }
+        );
+
+        try {
+          await AppleLLMModule.generateText({
+            prompt: options.prompt,
+            shouldStream: true
+          });
+          controller.close();
+        } catch (error) {
+          controller.error(error);
+        } finally {
+          listener.remove();
+        }
+      }
+    });
   }
 
   private ensureConfigured(): void {

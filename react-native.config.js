@@ -2,8 +2,8 @@ module.exports = {
   dependency: {
     platforms: {
       ios: {
-        podspecPath: "react-native-apple-llm.podspec",
-      },
-    },
-  },
+        podspecPath: "AppleLLMModule.podspec"
+      }
+    }
+  }
 };

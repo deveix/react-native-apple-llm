@@ -6,6 +6,7 @@ import { TurboModuleRegistry } from "react-native";
  */
 export interface GenerateTextOptions {
   prompt: string;
+  shouldStream?: boolean;
 }
 
 /**
@@ -16,6 +17,7 @@ export interface GenerateWithToolsOptions {
   maxTokens?: number;
   temperature?: number;
   toolTimeout?: number; // in milliseconds
+  shouldStream?: boolean;
 }
 
 /**
@@ -122,6 +124,12 @@ export interface Spec extends TurboModule {
    * Emitted when the LLM wants to invoke a tool
    */
   readonly onToolInvocation: CodegenTypes.EventEmitter<ToolInvocationEvent>;
+
+  /**
+   * Event emitter for text generation chunks
+   * Emitted when streaming text generation produces a new chunk
+   */
+  readonly onTextGenerationChunk: CodegenTypes.EventEmitter<TextGenerationChunkEvent>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>("AppleLLMModule");

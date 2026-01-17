@@ -4,6 +4,7 @@ import type { TurboModule, CodegenTypes } from "react-native";
  */
 export interface GenerateTextOptions {
     prompt: string;
+    shouldStream?: boolean;
 }
 /**
  * Options for generateWithTools
@@ -13,6 +14,7 @@ export interface GenerateWithToolsOptions {
     maxTokens?: number;
     temperature?: number;
     toolTimeout?: number;
+    shouldStream?: boolean;
 }
 /**
  * Configuration options for the session
@@ -103,6 +105,11 @@ export interface Spec extends TurboModule {
      * Emitted when the LLM wants to invoke a tool
      */
     readonly onToolInvocation: CodegenTypes.EventEmitter<ToolInvocationEvent>;
+    /**
+     * Event emitter for text generation chunks
+     * Emitted when streaming text generation produces a new chunk
+     */
+    readonly onTextGenerationChunk: CodegenTypes.EventEmitter<TextGenerationChunkEvent>;
 }
 declare const _default: Spec;
 export default _default;
