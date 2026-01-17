@@ -207,7 +207,8 @@ const streamWithEventEmitter = async () => {
 ## TODO
 
 - [ ] Schema as zod
-- [ ] Function calling capabilities
+- [X] Function calling capabilities
+- [X] Text Streaming
 
 ## API Reference
 
